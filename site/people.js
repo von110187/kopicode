@@ -1,8 +1,8 @@
 /* global THREE */
 // The people of a project, as characters that stand in front of it.
-// EVERY PERSON HERE IS INVENTED. Names, traits, contributions and quality are
-// drawn from a seed (the project's id), so the same project shows the same
-// mock team each time. Nothing is read from git, HR or any other record.
+// EVERY PERSON HERE IS INVENTED. Names, traits, behaviour, intention,
+// contributions and quality are drawn from a seed, so the same company and the
+// same teams show each time. Nothing is read from git, HR or any other record.
 window.GTECH_PEOPLE = (function () {
   "use strict";
   // Four traits, a mock of a short personality test. A person's strongest
@@ -58,6 +58,26 @@ window.GTECH_PEOPLE = (function () {
     "Ravi",
     "Suri",
     "Tan",
+    "Umar",
+    "Vani",
+    "Wei",
+    "Xin",
+    "Yusof",
+    "Zara",
+    "Arif",
+    "Bao",
+    "Chitra",
+    "Daniel",
+    "Elina",
+    "Faiz",
+    "Grace",
+    "Hafiz",
+    "Indra",
+    "Joon",
+    "Kavita",
+    "Lokman",
+    "Mei",
+    "Nurul",
   ];
   var SKIN = [0xf1c9a5, 0xe0ac7e, 0xc68642, 0x8d5524, 0xffdbac];
 
@@ -73,10 +93,82 @@ window.GTECH_PEOPLE = (function () {
     };
   }
 
+  // Behaviour: how a person works, as it would be observed. Each is 0 to 100
+  // between two ends, and neither end is the better one.
+  var BEHAVIOURS = [
+    { key: "pace", name: "Pace", low: "steady", high: "in bursts" },
+    { key: "together", name: "Working", low: "alone", high: "with others" },
+    { key: "review", name: "Reviews", low: "rarely", high: "often" },
+  ];
+  // Intention: what a person wants, as they would declare it themselves.
+  var AREAS = ["Serve", "Work", "Build"]; // the catalogue's business areas
+  var PATHS = [
+    { key: "lead", says: "wants to lead a team" },
+    { key: "specialise", says: "wants to go deeper in a craft" },
+  ];
+  var ROSTER_SIZE = 40;
+
+  /**
+   * The whole company, invented once from one seed: the people on teams and
+   * the people on none. A project's team is drawn from here, so one person
+   * can stand in front of more than one project.
+   */
+  var roster = (function () {
+    var rnd = seeded("roster");
+    var pool = NAMES.slice();
+    var out = [];
+    for (var i = 0; i < ROSTER_SIZE; i++) {
+      var scores = TRAITS.map(function () {
+        return 25 + Math.round(rnd() * 70);
+      });
+      var order = [0, 1, 2, 3].sort(function (a, b) {
+        return scores[b] - scores[a];
+      });
+      var behaviour = {};
+      BEHAVIOURS.forEach(function (b) {
+        behaviour[b.key] = Math.round(rnd() * 100);
+      });
+      // Most people want to grow a trait that is not yet their strongest.
+      var grow = TRAITS[order[1 + Math.floor(rnd() * 3)]];
+      out.push({
+        id: "p" + (i + 1),
+        name: pool.splice(Math.floor(rnd() * pool.length), 1)[0],
+        scores: scores,
+        first: TRAITS[order[0]],
+        second: TRAITS[order[1]],
+        behaviour: behaviour,
+        intention: {
+          grow: grow,
+          area: AREAS[Math.floor(rnd() * AREAS.length)],
+          path: PATHS[Math.floor(rnd() * PATHS.length)],
+          openToMove: rnd() < 0.6,
+        },
+        quality: 62 + Math.round(rnd() * 36),
+        height: 0.9 + rnd() * 0.3,
+        skin: SKIN[Math.floor(rnd() * SKIN.length)],
+        hueShift: Math.round(rnd() * 24 - 12),
+        projects: [], // filled as teams are drawn: { id, name, contributions }
+      });
+    }
+    return out;
+  })();
+
+  /** Spare time, as a share of a week: less with every project a person is on. */
+  function capacity(p) {
+    return Math.max(0, 100 - p.projects.length * 40);
+  }
+
+  var teams = {};
+  /** A project's team: the same people each time, each with their share of its commits. */
   function teamOf(d) {
+    if (teams[d.id]) return teams[d.id];
     var rnd = seeded("people:" + d.id);
     var n = Math.max(2, Math.min(8, d.git.contributors || 3));
-    var pool = NAMES.slice();
+    // Nobody is put on a third project while someone else has fewer.
+    var free = roster.filter(function (p) {
+      return p.projects.length < 2;
+    });
+    if (free.length < n) free = roster.slice();
     var shares = [];
     var total = 0;
     for (var i = 0; i < n; i++) {
@@ -85,31 +177,26 @@ window.GTECH_PEOPLE = (function () {
     }
     var team = [];
     for (i = 0; i < n; i++) {
-      var scores = TRAITS.map(function () {
-        return 25 + Math.round(rnd() * 70);
+      var person = free.splice(Math.floor(rnd() * free.length), 1)[0];
+      // A share of the project's own commit count, so the team adds up to it.
+      var contributions = Math.max(
+        1,
+        Math.round(((d.git.commits || 100) * shares[i]) / total),
+      );
+      person.projects.push({
+        id: d.id,
+        name: d.name,
+        contributions: contributions,
       });
-      var order = [0, 1, 2, 3].sort(function (a, b) {
-        return scores[b] - scores[a];
-      });
-      team.push({
-        name: pool.splice(Math.floor(rnd() * pool.length), 1)[0],
-        scores: scores,
-        first: TRAITS[order[0]],
-        second: TRAITS[order[1]],
-        // A share of the project's own commit count, so the team adds up to it.
-        contributions: Math.max(
-          1,
-          Math.round(((d.git.commits || 100) * shares[i]) / total),
-        ),
-        quality: 62 + Math.round(rnd() * 36),
-        height: 0.9 + rnd() * 0.3,
-        skin: SKIN[Math.floor(rnd() * SKIN.length)],
-        hueShift: Math.round(rnd() * 24 - 12),
-      });
+      // A member is the person as they stand in this project.
+      var member = Object.create(person);
+      member.contributions = contributions;
+      team.push(member);
     }
-    return team.sort(function (a, b) {
+    teams[d.id] = team.sort(function (a, b) {
       return b.contributions - a.contributions;
     });
+    return teams[d.id];
   }
 
   function mat(c) {
@@ -261,6 +348,9 @@ window.GTECH_PEOPLE = (function () {
         return n + o.quality;
       }, 0) / team.length,
     );
+    var others = p.projects.filter(function (o) {
+      return o.id !== d.id;
+    });
     return (
       "<h2>" +
       esc(p.name) +
@@ -297,9 +387,54 @@ window.GTECH_PEOPLE = (function () {
           "</td></tr>"
         );
       }).join("") +
-      '</table><p class="sub" style="margin-top:10px">Mock data. This person, the four traits, the contributions and the quality figures are invented from a seed; nothing is read from git, HR or an interview.</p>'
+      "</table>" +
+      '<p class="sub" style="margin:12px 0 4px">Behaviour · how they work</p><table>' +
+      BEHAVIOURS.map(function (b) {
+        var v = p.behaviour[b.key];
+        return (
+          '<tr><td style="width:84px">' +
+          b.name +
+          '</td><td><div style="position:relative;height:8px;border-radius:4px;background:#eee7da"><div style="position:absolute;top:-2px;left:calc(' +
+          v +
+          '% - 6px);width:12px;height:12px;border-radius:6px;background:#2b3a30"></div></div></td><td class="n" style="width:84px">' +
+          esc(v < 50 ? b.low : b.high) +
+          "</td></tr>"
+        );
+      }).join("") +
+      "</table>" +
+      '<p class="sub" style="margin:12px 0 4px">Intention · what they want</p><p>Wants to grow as a ' +
+      esc(p.intention.grow.name.toLowerCase()) +
+      ", " +
+      esc(p.intention.path.says) +
+      ", drawn to " +
+      esc(p.intention.area) +
+      " work. " +
+      (p.intention.openToMove
+        ? "Open to joining another project"
+        : "Wants to stay where they are") +
+      "; " +
+      capacity(p) +
+      "% of a week spare.</p>" +
+      (others.length
+        ? '<p class="sub">Also on ' +
+          others
+            .map(function (o) {
+              return esc(o.name);
+            })
+            .join(", ") +
+          ".</p>"
+        : "") +
+      '<p class="sub" style="margin-top:10px">Mock data. This person, the four traits, the behaviour, the intention, the contributions and the quality figures are invented from a seed; nothing is read from git, HR or an interview.</p>'
     );
   }
 
-  return { stand: stand, card: card, TRAITS: TRAITS };
+  return {
+    stand: stand,
+    card: card,
+    TRAITS: TRAITS,
+    BEHAVIOURS: BEHAVIOURS,
+    roster: roster,
+    teamOf: teamOf,
+    capacity: capacity,
+  };
 })();
