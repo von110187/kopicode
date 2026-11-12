@@ -106,7 +106,9 @@ window.GTECH_PEOPLE = (function () {
     { key: "lead", says: "wants to lead a team" },
     { key: "specialise", says: "wants to go deeper in a craft" },
   ];
-  var ROSTER_SIZE = 40;
+  var ROSTER_SIZE = 200;
+  // Beyond the first forty, a name is a given name and the initial of a family name.
+  var INITIALS = "ACDGHKLMNORSTWYZ".split("");
 
   /**
    * The whole company, invented once from one seed: the people on teams and
@@ -117,6 +119,21 @@ window.GTECH_PEOPLE = (function () {
     var rnd = seeded("roster");
     var pool = NAMES.slice();
     var out = [];
+    var taken = {};
+    // The first forty keep a given name alone, as they always had; the rest add an initial.
+    function nameFor() {
+      if (pool.length) return pool.splice(Math.floor(rnd() * pool.length), 1)[0];
+      var name;
+      do {
+        name =
+          NAMES[Math.floor(rnd() * NAMES.length)] +
+          " " +
+          INITIALS[Math.floor(rnd() * INITIALS.length)] +
+          ".";
+      } while (taken[name]);
+      taken[name] = true;
+      return name;
+    }
     for (var i = 0; i < ROSTER_SIZE; i++) {
       var scores = TRAITS.map(function () {
         return 25 + Math.round(rnd() * 70);
@@ -132,7 +149,7 @@ window.GTECH_PEOPLE = (function () {
       var grow = TRAITS[order[1 + Math.floor(rnd() * 3)]];
       out.push({
         id: "p" + (i + 1),
-        name: pool.splice(Math.floor(rnd() * pool.length), 1)[0],
+        name: nameFor(),
         scores: scores,
         first: TRAITS[order[0]],
         second: TRAITS[order[1]],
@@ -159,16 +176,26 @@ window.GTECH_PEOPLE = (function () {
   }
 
   var teams = {};
+  /** Puts a person on a project's team, with their share of its commits. */
+  function join(person, d, contributions) {
+    person.projects.push({ id: d.id, name: d.name, contributions: contributions });
+    // A member is the person as they stand in this project.
+    var member = Object.create(person);
+    member.contributions = contributions;
+    return member;
+  }
   /** A project's team: the same people each time, each with their share of its commits. */
   function teamOf(d) {
     if (teams[d.id]) return teams[d.id];
     var rnd = seeded("people:" + d.id);
-    var n = Math.max(2, Math.min(8, d.git.contributors || 3));
-    // Nobody is put on a third project while someone else has fewer.
-    var free = roster.filter(function (p) {
-      return p.projects.length < 2;
+    var n = Math.max(2, Math.min(12, d.git.contributors || 3));
+    // Whoever is on no project yet is drawn first; only then does anyone take a second.
+    var none = roster.filter(function (p) {
+      return !p.projects.length;
     });
-    if (free.length < n) free = roster.slice();
+    var one = roster.filter(function (p) {
+      return p.projects.length === 1;
+    });
     var shares = [];
     var total = 0;
     for (var i = 0; i < n; i++) {
@@ -177,21 +204,12 @@ window.GTECH_PEOPLE = (function () {
     }
     var team = [];
     for (i = 0; i < n; i++) {
-      var person = free.splice(Math.floor(rnd() * free.length), 1)[0];
+      var from = none.length ? none : one.length ? one : roster.slice();
+      var person = from.splice(Math.floor(rnd() * from.length), 1)[0];
       // A share of the project's own commit count, so the team adds up to it.
-      var contributions = Math.max(
-        1,
-        Math.round(((d.git.commits || 100) * shares[i]) / total),
+      team.push(
+        join(person, d, Math.max(1, Math.round(((d.git.commits || 100) * shares[i]) / total))),
       );
-      person.projects.push({
-        id: d.id,
-        name: d.name,
-        contributions: contributions,
-      });
-      // A member is the person as they stand in this project.
-      var member = Object.create(person);
-      member.contributions = contributions;
-      team.push(member);
     }
     teams[d.id] = team.sort(function (a, b) {
       return b.contributions - a.contributions;
@@ -530,7 +548,7 @@ window.GTECH_PEOPLE = (function () {
         // A dummy inside keeps its own structure; its team size and commits are set here.
         var d = e.district || { id: e.id, name: e.name };
         d.git = d.git || {};
-        d.git.contributors = 2 + Math.floor(rnd() * 2);
+        d.git.contributors = 8 + Math.floor(rnd() * 3);
         d.git.commits = 80 + Math.round(rnd() * 900);
         projects[e.id] = d;
         teamOf(d);

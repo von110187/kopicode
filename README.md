@@ -27,14 +27,14 @@ Agents that work between projects (business development first, then DevOps) are 
 
 ## Who should join a project
 
-Each person has a **behaviour** (how they work: their pace, whether they work alone or with others, how often they review) and an **intention** (what they want: the trait they want to grow, to lead or to go deeper in a craft, the business area they are drawn to, whether they are open to moving). Every project has a team drawn from one company roster of 40, so a person can be on two projects, on one or on none, and has less time to spare the more they are on. A project that is short of someone shows an open seat, and a seat lists who could take it, scored against the seat and against the people already on the team.
+Each person has a **behaviour** (how they work: their pace, whether they work alone or with others, how often they review) and an **intention** (what they want: the trait they want to grow, to lead or to go deeper in a craft, the business area they are drawn to, whether they are open to moving). Every project has a team drawn from one company roster of 200; whoever is on no project keeps to a commons at the edge of the world. A project that is short of someone shows an open seat, and a seat lists who could take it, scored against the seat and against the people already on the team.
 
 ![A seat's shortlist, with the model's pick above the rule's ranking](docs/seat.png)
 
 Where to find it on the page:
 
 - **In the world**, a project's object says what it does by its shape and what state it is in by how it is dressed: grey and overgrown with no commit in 90 days, taped off under 10% tests, a "to let" board with no owner, a fenced plot before any code, scaffolding and a crane under 150 commits.
-- **Everyone stands at the project they work on**, and walks the way they work: evenly or in dashes and stops, in a group or alone, between two projects where they are on two, calling on other teams where they review often. Whoever is on no project keeps to a commons at the edge.
+- **Everyone stands at the project they work on**, and walks the way they work: evenly or in dashes and stops, in a group or alone, between two projects where they are on two, calling on other teams where they review often.
 - **A pennant** flies over a project that is short of someone. Clicking it, or its row under "Short of someone", sends up a flare: the five people who fit best walk over, the best fit arriving first, the model's pick in a spotlight, and a card lists who is coming and why.
 - **One view switch, on every page**, moves between the people by domain (where people are filtered), the projects in 3D and the catalogue. The project world has no filters of its own.
 - **A map key** along the bottom of the world says what each thing in it means.
@@ -101,7 +101,7 @@ npm start            # serve the build
   - **Skills** span the whole group, not only software (`src/org/skills.ts`), each with tags (DevOps → AWS, GCP; Geophysics → GPR).
   - **Cross-group utilisation**: for each skill a squad lacks, people elsewhere who have it and time to give; skills nobody can be borrowed for are marked to hire or retrain.
   - **Domains** cut across every grouping: the drawer's grid shows where a group's squads need a domain's skills more times than it has people with them, and pairs it with the group that has people to spare.
-  - **The person roster** (`public/city/people.js`) is read on the server (`src/org/roster.ts`): its 40 people join the digital tribes by name, and their traits, review habit, quality, way of working and openness to moving become the values the metrics read. Skills are not in the roster yet, so theirs, and everyone else's values, still come from the stand-in.
+  - **The person roster** (`public/city/people.js`) is read on the server (`src/org/roster.ts`): its 200 people join the digital tribes by name, and their traits, review habit, quality, way of working and openness to moving become the values the metrics read. Skills are not in the roster yet, so theirs, and everyone else's values, still come from the stand-in.
   - **Borderline people** (about 15%: low behaviour scores or little proof) each get a plan: reallocate where a skill of theirs is lacking and the squad works the way they do, or retrain into a skill nobody can be borrowed for, with a mentor from their chapter.
 - People in both 3D views are drawn by one figure kit (`src/three/figure-kit.ts`): lathed bodies, textured clothes, and a seeded random look (skin, hair, clothes, build, hard hat and hi-vis for site skills).
 - `/city` is the 3D city (`src/routes/city.tsx`), which loads the three.js viewer in `public/city/`.

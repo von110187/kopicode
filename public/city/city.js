@@ -586,23 +586,7 @@
       return !e.app;
     }),
   );
-  gapList
-    .filter(function (g) {
-      return g.rule === "no-project";
-    })
-    .forEach(function (g) {
-      var p = cat.problems.filter(function (x) {
-        return x.id === g.problem;
-      })[0];
-      entries.push({
-        id: "gap-" + p.id,
-        name: "No project",
-        kind: "empty",
-        problem: p,
-        app: null,
-        district: null,
-      });
-    });
+  // A business problem with no project is a line in the gaps list; it has no place in the world.
   var gapsOf = function (id) {
     return gapList.filter(function (g) {
       return g.apps.indexOf(id) >= 0;
@@ -701,16 +685,16 @@
   // ---- The people, in the world: everyone at the project they work on, moving
   // the way they work. Whoever is on no project keeps to a commons at the edge.
   var commons = new THREE.Group();
-  commons.position.set(-((cols - 1) / 2 + 1.05) * SPACING, 0, -SPACING * 0.5);
+  commons.position.set(-((cols - 1) / 2 + 1.1) * SPACING, 0, 0);
   commons.add(
     at(
-      new THREE.Mesh(new THREE.CylinderGeometry(12, 12, 0.8, 40), mat(0xece6d4)),
+      new THREE.Mesh(new THREE.CylinderGeometry(15, 15, 0.8, 48), mat(0xf3ecd9)),
       0,
       -0.42,
       0,
     ),
   );
-  commons.add(at(label("On no project", 22), 0, 1.4, 13.5));
+  commons.add(at(label("On no project", 22), 0, 1.4, 16.5));
   world.add(commons);
 
   var walkers = [];
@@ -724,7 +708,7 @@
   /** A point on the ring of ground around a project, clear of its object. */
   function ringAt(centre, far) {
     var a = rand() * Math.PI * 2;
-    var r = centre === commons.position ? 2 + rand() * (far ? 9 : 6) : (far ? 11.2 : 9.2) + rand() * 1.4;
+    var r = centre === commons.position ? 2 + rand() * (far ? 12 : 9) : (far ? 11.2 : 9.2) + rand() * 1.4;
     return { x: centre.x + Math.cos(a) * r, z: centre.z + Math.sin(a) * r };
   }
   if (window.GTECH_PEOPLE && window.GTECH_PEOPLE.figure) {
@@ -740,7 +724,7 @@
           return p.spot.position;
         });
       var fig = window.GTECH_PEOPLE.figure(person);
-      fig.scale.multiplyScalar(1.75);
+      fig.scale.multiplyScalar(1.5);
       var at0 = ringAt(homes[0] || commons.position, false);
       fig.position.set(at0.x, 0, at0.z);
       world.add(fig);
@@ -1533,7 +1517,7 @@
     selected = null;
     world.visible = true;
     showWorld();
-    look(worldCentre(), Math.max(cols, rows) * SPACING * 0.75 + 22);
+    look(worldCentre(), Math.max(cols, rows) * SPACING * 0.75 + 34);
     chips();
   }
 
@@ -1807,7 +1791,7 @@
       look(p.spot.position.clone().setY(4), r || 34);
     };
     var whole = function () {
-      look(worldCentre(), Math.max(cols, rows) * SPACING * 0.75 + 22);
+      look(worldCentre(), Math.max(cols, rows) * SPACING * 0.75 + 34);
     };
     var steps = [
       [5, whole, "Every project is an object shaped by what it does, and everyone stands at the project they work on."],

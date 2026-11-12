@@ -47,28 +47,28 @@ window.GTECH_ANALYSIS = {
   "p40": "Excellent on quality and a good builder and designer, steady, with little interest in coordinating people. Wants to deepen their design thinking and to stay where they are."
  },
  "seats": {
-  "kopicode/guardian": {
-   "pick": "p38",
-   "why": "The rule's first choice too. Nobody on this team is a guardian, the project has no tests, and Arif and Chong each have a fifth of a week left, so whoever comes must bring the skill, the habit and the time. Xin is the strongest guardian of the five, reviews often, wants quality as a craft and has three days a week free. Jia reviews even more, but wants to grow as a connector and is the weaker guardian.",
-   "risk": "There is almost nobody to review with. Arif never reviews and has a day a week here, and Chong has the same. Watch in the first month that Xin is not left writing every test alone while the builders have no time to act on what the reviews find.",
+  "kopicode/connector": {
+   "pick": "p112",
+   "why": "Chosen over the rule's first choice, Imran M., by a short head. Both are on no project and both want the role, but Nurul G. is the stronger connector, steady where two of this team work in bursts, and a frequent reviewer on a team that reviews little. Note what the rule cannot say: this team is not short of connectors. Chong K. and Suri D. are both strong ones. The need is open because nobody has got the project into the catalogue, which is a job to be owned more than a skill to be added.",
+   "risk": "Nurul G. wants to lead, and so does Suri D. Settle who leads before Nurul G. arrives, or the first month goes on that. And ask first whether Chong K., a strong connector who wants to stay, could simply own the catalogue entry.",
    "candidates": {
-    "p38": "The strongest guardian of the five, a frequent reviewer with three days a week free: skill, habit and time together.",
-    "p34": "Reviews more than anyone and is a top builder who could write the tests, but wants to grow as a connector, not a guardian.",
-    "p24": "A top builder with real quality strength and time to give, who works alone and reviews little: the habit Arif already brings.",
-    "p17": "Strong and a good link between people, but on two projects with a fifth of a week left, and reviews seldom.",
-    "p30": "Wants the role and works well with others, but is a middling guardian who rarely reviews: a learner on a team with nobody to learn quality from."
+    "p165": "On no project, works with others and wants the role, but a weaker connector than Nurul G. and also wants to lead beside Suri D.",
+    "p112": "On no project, strong across the board, steady and a frequent reviewer, which this team lacks. Wants to lead, as Suri D. does.",
+    "p125": "On no project, works with others and does not want to lead, but is a weak connector today: the role would be a stretch.",
+    "p163": "On no project and a frequent reviewer, but a middling connector who would be a second would-be lead.",
+    "p62": "The strongest connector of the five and does not want to lead, but is on Relay, which is short of people itself."
    }
   },
-  "kopicode/connector": {
-   "pick": "p34",
-   "why": "Chosen over the rule's first choice, Qistina, who is free all week but is a middling connector today and would be a second person here, beside Chong, who wants to lead. Jia is a strong connector already, wants to go deeper in it, has three days a week and does not compete to lead. Tan is stronger still, but has said they want to stay where they are.",
-   "risk": "Jia is as strong a builder as a connector, and this team's two builders, Arif and Chong, each have a fifth of a week. Watch that Jia is not pulled into building while the job the need exists for, getting the project into the catalogue and known to other teams, goes undone.",
+  "kopicode/guardian": {
+   "pick": "p38",
+   "why": "The rule's first choice too. The project has no tests, yet the team is not short of quality skill: Suri D. is a strong guardian. What it lacks is the habit. Nobody on it reviews often, and two of the three work in bursts. Xin is a strong guardian who reviews often and wants quality as a craft. Kamal L. reviews even more, but is a weak guardian today, so would bring the habit without the judgement.",
+   "risk": "Xin is on Pulse, which has needs of its own, so this takes someone from one short team to give to another. If Pulse cannot spare Xin, Ehsan H. is on no project and is the strongest guardian of the five, though what Ehsan H. wants is to grow as a connector.",
    "candidates": {
-    "p13": "Free all week and the most collaborative person on the roster, but a middling connector today and a second would-be lead beside Chong.",
-    "p34": "A strong connector who wants more of it, has three days a week and does not want to lead.",
-    "p36": "Wants the role and is free, but prefers to work alone and also wants to lead.",
-    "p23": "Free and wants the role, but works alone and almost never reviews: the opposite of a connector's habits today.",
-    "p3": "The strongest connector on the roster and free all week, but wants to stay where they are and to grow as a designer."
+    "p38": "A strong guardian who reviews often, works with others and wants this as a craft: the skill and the habit together. On Pulse now.",
+    "p133": "On no project and wants the role, and a strong builder who could write the missing tests, but a middling guardian who reviews little.",
+    "p49": "A top builder with real quality strength, but works mostly alone, as this team's main builder already does.",
+    "p186": "Reviews more than anyone on the list and wants the role, but is a weak guardian today: the habit without the judgement yet.",
+    "p125": "On no project and the strongest guardian of the five, a fair reviewer who works with others, but wants to grow as a connector, not a guardian."
    }
   }
  }
