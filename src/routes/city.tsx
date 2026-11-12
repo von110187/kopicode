@@ -66,21 +66,11 @@ function City() {
           </a>
         </h1>
         <span id="districts"></span>
-        <button id="tour">Tour</button>
         <input
           id="q"
           type="search"
           placeholder="Search a person, project, strength or intention"
           aria-label="Search a person, project, strength or intention"
-          style={{
-            font: "inherit",
-            padding: "6px 12px",
-            borderRadius: 999,
-            border: "1px solid #d9d2c4",
-            background: "#fff",
-            width: 290,
-            maxWidth: "40vw",
-          }}
         />
         <button id="f-free" aria-pressed="false">
           Free now
@@ -88,15 +78,19 @@ function City() {
         <button id="f-open" aria-pressed="false">
           Open to move
         </button>
-        <button id="staffing">Staffing</button>
-        <button id="motion" aria-pressed="false" hidden>
-          Play motion
-        </button>
         <button id="explode" aria-pressed="false">
           Explode
         </button>
         <button id="wiring" aria-pressed="true">
           Wiring
+        </button>
+        <span className="rest"></span>
+        <button id="tour" className="lead">
+          Tour
+        </button>
+        <button id="staffing">Staffing</button>
+        <button id="motion" aria-pressed="false" hidden>
+          Play motion
         </button>
       </div>
       <aside id="card" hidden aria-live="polite"></aside>

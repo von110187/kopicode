@@ -345,7 +345,7 @@
     }
     if (st.unowned) {
       spot.add(at(box(0.3, 5, 0.3, 0x7a6a52), 8.2, 2.5, 7));
-      spot.add(at(label("TO LET", 15, "#b3261e"), 8.2, 5.6, 7));
+      spot.add(at(label("TO LET", 21, "#b3261e"), 8.2, 6, 7));
     }
     if (st.young) {
       var bar = 0xb58a3a;
@@ -731,7 +731,7 @@
           return p.spot.position;
         });
       var fig = window.GTECH_PEOPLE.figure(person);
-      fig.scale.multiplyScalar(1.35);
+      fig.scale.multiplyScalar(1.75);
       var at0 = ringAt(homes[0] || commons.position, false);
       fig.position.set(at0.x, 0, at0.z);
       world.add(fig);
@@ -982,13 +982,13 @@
       if (!w) return;
       w.called = place;
       w.arrived = false;
-      w.tx = place.spot.position.x + (i - (list.length - 1) / 2) * 3.4;
+      w.tx = place.spot.position.x + (i - (list.length - 1) / 2) * 4.6;
       w.tz = place.spot.position.z + 15.5 + (i % 2) * 1.6;
       // The better the fit, the sooner they arrive, however far off they start.
       w.speed = Math.hypot(w.tx - w.fig.position.x, w.tz - w.fig.position.z) / (4 + i * 1.7);
       var pick = ai && ai.pick === m.person.id;
-      w.tag = label(m.person.name + " " + m.score + (pick ? " · AI" : ""), 13, pick ? "#b3541e" : null);
-      w.tag.position.set(0, 4.6, 0);
+      w.tag = label(m.person.name + " " + m.score + (pick ? " · AI" : ""), 19, pick ? "#b3541e" : null);
+      w.tag.position.set(0, 4.9, 0);
       w.fig.add(w.tag);
       w.onArrive = function () {
         if (place.dressed) place.dressed.relight(); // someone has come: the lights go back on
@@ -1418,7 +1418,7 @@
       },
     );
     if (typeof here !== "undefined") {
-      here.hidden = !(inside && inside.district.dummy);
+      here.hidden = !inside;
       if (!here.hidden) {
         here.textContent = inside.district.name;
         here.setAttribute("aria-pressed", "true");
@@ -1455,6 +1455,7 @@
     card.innerHTML +=
       (People ? People.teamCard(p.district.id) : "") +
       seatsOf(p.entry, showProject);
+    card.scrollTop = 0; // a project's card opens at its top, wherever the last one was left
     card.innerHTML +=
       '<h2 style="margin-top:14px;font-size:14px">Business</h2>' +
       businessHtml(p.entry) +
@@ -1586,6 +1587,11 @@
     chips();
   }
 
+  /** The middle of the world as the camera should hold it: clear of the card on a wide screen. */
+  function worldCentre() {
+    return innerWidth > 900 ? new THREE.Vector3(13, 4, -8.5) : new THREE.Vector3(0, 4, 0);
+  }
+
   function leave() {
     setGhost(null);
     if (inside) inside.group.visible = false;
@@ -1593,10 +1599,7 @@
     selected = null;
     world.visible = true;
     showWorld();
-    look(
-      new THREE.Vector3(0, 4, 0),
-      Math.max(cols, rows) * SPACING * 0.75 + 22,
-    );
+    look(worldCentre(), Math.max(cols, rows) * SPACING * 0.75 + 22);
     chips();
   }
 
@@ -1714,7 +1717,8 @@
     if (hitFlag) {
       var fl = hitFlag.object;
       while (fl && !fl.userData.place) fl = fl.parent;
-      return sendFlare(fl.userData.place, 0);
+      sendFlare(fl.userData.place, 0);
+      return look(fl.userData.place.spot.position.clone().setY(4), 46);
     }
     // Then a person: they stand in front of the projects.
     var hitWho = ray.intersectObjects(
@@ -1754,14 +1758,7 @@
     bar.appendChild(b);
   }
   chip("World", "", leave);
-  places.forEach(function (p) {
-    // A chip for each scanned repository; a dummy inside is reached from the world.
-    if (!p.district || p.district.dummy) return;
-    chip(p.district.name, p.district.id, function () {
-      enter(p);
-    });
-  });
-  // One more chip names the dummy project the page is inside, while it is.
+  // Every project is entered from the world; one more chip names the project the page is inside.
   chip("", "here", function () {});
   var here = bar.lastChild;
   here.hidden = true;
@@ -1876,7 +1873,7 @@
       look(p.spot.position.clone().setY(4), r || 34);
     };
     var whole = function () {
-      look(new THREE.Vector3(0, 4, 0), Math.max(cols, rows) * SPACING * 0.75 + 22);
+      look(worldCentre(), Math.max(cols, rows) * SPACING * 0.75 + 22);
     };
     var steps = [
       [5, whole, "Every project is an object shaped by what it does, and everyone stands at the project they work on."],
