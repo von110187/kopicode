@@ -67,6 +67,9 @@ function City() {
         </h1>
         <span id="districts"></span>
         <button id="staffing">Staffing</button>
+        <button id="motion" aria-pressed="false" hidden>
+          Play motion
+        </button>
         <button id="explode" aria-pressed="false">
           Explode
         </button>

@@ -1194,6 +1194,84 @@ window.GTECH_PEOPLE = (function () {
     );
   }
 
+  /**
+   * Who is walking to a project that has sent up its flare: the rule's top
+   * five for the need, each marked as on the way or arrived, the model's pick
+   * where it has one, and the project's other needs to send a flare for.
+   * `arrived` is the ids of those who have got there.
+   */
+  function comingCard(seat, d, list, arrived, all, index) {
+    var a = analysis();
+    var ai = a && a.seats[seat.project + "/" + seat.trait.key];
+    return (
+      "<button data-home=\"1\" " +
+      BACK +
+      ">← Send everyone home</button><h2>Who is coming</h2><p>" +
+      esc(d.name) +
+      " needs a " +
+      esc(seat.trait.name.toLowerCase()) +
+      ": " +
+      esc(seat.reasons.join("; ")) +
+      ".</p>" +
+      (all.length > 1
+        ? '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">' +
+          all
+            .map(function (s2, k) {
+              return (
+                '<button data-flare="' +
+                k +
+                '" aria-pressed="' +
+                (k === index) +
+                '" style="font-size:12px;padding:3px 9px">' +
+                esc(s2.trait.name) +
+                "</button>"
+              );
+            })
+            .join("") +
+          "</div>"
+        : "") +
+      (ai
+        ? "<div " +
+          AI_BOX +
+          '><p class="sub" style="margin:0 0 4px">AI\'s pick, in the spotlight</p><p style="margin:0 0 4px"><b>' +
+          esc(nameOf(ai.pick)) +
+          ".</b> " +
+          esc(ai.why) +
+          "</p>" +
+          byModel(a) +
+          "</div>"
+        : '<p class="sub">No AI pick written for this need: the order is the rule\'s alone.</p>') +
+      '<table style="margin-top:8px"><tr><th>Person</th><th class="n">Fit</th></tr>' +
+      list
+        .map(function (m) {
+          var here = arrived.indexOf(m.person.id) >= 0;
+          return (
+            '<tr data-candidate="' +
+            m.person.id +
+            '" style="cursor:pointer' +
+            (here ? ";background:#e6eedf" : "") +
+            '"><td>' +
+            esc(m.person.name) +
+            ' <span class="sub">' +
+            (here ? "has arrived" : "walking over") +
+            (ai && ai.pick === m.person.id ? " · AI's pick" : "") +
+            '</span><br><span class="sub">' +
+            groups(m)
+              .map(function (g) {
+                return g.group.toLowerCase() + " " + g.got + "/" + g.of;
+              })
+              .join(" · ") +
+            '</span></td><td class="n"><b>' +
+            m.score +
+            "</b></td></tr>"
+          );
+        })
+        .join("") +
+      '</table><p class="sub" style="margin-top:8px">The better the fit, the sooner they arrive. Click someone for where their score came from.</p>' +
+      NO_SCORE
+    );
+  }
+
   /** One person of the roster, away from any project or seat. */
   function personCard(id, backTo) {
     var p = roster.filter(function (x) {
@@ -1246,6 +1324,7 @@ window.GTECH_PEOPLE = (function () {
     projectOf: projectOf,
     staffingCard: staffingCard,
     personCard: personCard,
+    comingCard: comingCard,
     ghost: ghost,
     figure: figure,
     person: function (id) {

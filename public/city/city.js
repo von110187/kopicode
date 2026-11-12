@@ -645,21 +645,24 @@
         cat.problems,
         new Date(),
       );
-      open.forEach(function (s, k) {
-        spot.add(
-          at(
-            new THREE.Mesh(
-              new THREE.SphereGeometry(1.15, 16, 12),
-              new THREE.MeshLambertMaterial({
-                color: new THREE.Color().setHSL(s.trait.hue / 360, 0.6, 0.55),
-              }),
-            ),
-            (k - (open.length - 1) / 2) * 3,
-            13.2,
-            0,
-          ),
+      p.openSeats = open;
+      if (open.length) {
+        // A pennant for a project that is short of someone, in the colour of what it needs most.
+        var pennant = new THREE.Group();
+        pennant.add(at(box(0.28, 5, 0.28, 0x23302a), 0, 2.5, 0));
+        var flagCloth = new THREE.Mesh(
+          new THREE.ConeGeometry(1.25, 3.2, 3),
+          new THREE.MeshLambertMaterial({
+            color: new THREE.Color().setHSL(open[0].trait.hue / 360, 0.7, 0.5),
+          }),
         );
-      });
+        flagCloth.rotation.z = -Math.PI / 2;
+        pennant.add(at(flagCloth, 1.7, 4.1, 0));
+        pennant.position.set(0, 11.5, 0);
+        pennant.userData.place = p;
+        spot.add(pennant);
+        p.pennant = pennant;
+      }
     }
     spot.position.set(
       ((i % cols) - (cols - 1) / 2) * SPACING,
@@ -823,6 +826,121 @@
       }
       w.fig.position.y = moving ? Math.abs(Math.sin(t * 9 + w.phase)) * 0.28 : 0;
     });
+  }
+
+  // ---- A flare: a project that is short of someone calls the people who fit,
+  // and they walk to it, the best fit arriving first.
+  var flare = null;
+  function sendHome() {
+    walkers.forEach(function (w) {
+      if (!w.called) return;
+      w.called = null;
+      w.arrived = false;
+      w.onArrive = null;
+      w.wait = 0;
+      if (w.tag) w.fig.remove(w.tag);
+      if (w.beam) w.fig.remove(w.beam);
+      w.tag = w.beam = null;
+    });
+    if (flare) {
+      flare.place.spot.remove(flare.mesh);
+      if (flare.place.pennant) flare.place.pennant.visible = true;
+    }
+    flare = null;
+  }
+  function showComing() {
+    if (!flare) return showWorld();
+    card.hidden = false;
+    card.innerHTML = People.comingCard(
+      flare.seat,
+      flare.d,
+      flare.list,
+      walkers
+        .filter(function (w) {
+          return w.called === flare.place && w.arrived;
+        })
+        .map(function (w) {
+          return w.person.id;
+        }),
+      flare.place.openSeats,
+      flare.index,
+    );
+  }
+  function sendFlare(place, index) {
+    sendHome();
+    var d = place.district || People.projectOf(place.entry.id);
+    var need = place.openSeats[index];
+    var list = People.match(need, d).slice(0, 5);
+    var a = window.GTECH_ANALYSIS;
+    var ai = a && a.seats[d.id + "/" + need.trait.key];
+    var hue = need.trait.hue / 360;
+    var mesh = new THREE.Group();
+    var glow = new THREE.Mesh(
+      new THREE.SphereGeometry(1.5, 20, 14),
+      new THREE.MeshBasicMaterial({ color: new THREE.Color().setHSL(hue, 0.9, 0.58) }),
+    );
+    var halo = new THREE.Mesh(
+      new THREE.SphereGeometry(3.4, 20, 14),
+      new THREE.MeshBasicMaterial({
+        color: new THREE.Color().setHSL(hue, 0.9, 0.6),
+        transparent: true,
+        opacity: 0.25,
+      }),
+    );
+    var trail = box(0.18, 1, 0.18, 0xffffff);
+    trail.material = new THREE.MeshBasicMaterial({ color: new THREE.Color().setHSL(hue, 0.9, 0.6) });
+    mesh.add(glow, halo, trail);
+    place.spot.add(mesh);
+    if (place.pennant) place.pennant.visible = false;
+    flare = { place: place, d: d, seat: need, list: list, index: index, mesh: mesh, glow: glow, halo: halo, trail: trail, born: clock ? clock.getElapsedTime() : 0 };
+    // The seat in hand is the need, so a candidate's card can be opened from the list.
+    seat = need;
+    ctx = { d: d, back: showComing, coming: true };
+    list.forEach(function (m, i) {
+      var w = walkers.filter(function (x) {
+        return x.person.id === m.person.id;
+      })[0];
+      if (!w) return;
+      w.called = place;
+      w.arrived = false;
+      w.tx = place.spot.position.x + (i - (list.length - 1) / 2) * 3.4;
+      w.tz = place.spot.position.z + 15.5 + (i % 2) * 1.6;
+      // The better the fit, the sooner they arrive, however far off they start.
+      w.speed = Math.hypot(w.tx - w.fig.position.x, w.tz - w.fig.position.z) / (4 + i * 1.7);
+      var pick = ai && ai.pick === m.person.id;
+      w.tag = label(m.person.name + " " + m.score + (pick ? " · AI" : ""), 13, pick ? "#b3541e" : null);
+      w.tag.position.set(0, 4.6, 0);
+      w.fig.add(w.tag);
+      w.onArrive = function () {
+        if (place.dressed) place.dressed.relight(); // someone has come: the lights go back on
+        if (pick) {
+          // The model's pick stands in a spotlight.
+          w.beam = new THREE.Mesh(
+            new THREE.ConeGeometry(2.2, 16, 24, 1, true),
+            new THREE.MeshBasicMaterial({
+              color: 0xffe9a6,
+              transparent: true,
+              opacity: 0.38,
+              side: THREE.DoubleSide,
+              depthWrite: false,
+            }),
+          );
+          w.beam.position.set(0, 8, 0);
+          w.fig.add(w.beam);
+        }
+        if (!inside && flare && flare.place === place && card.querySelector("[data-home]")) showComing();
+      };
+    });
+    // Asked afresh: a flare can be sent from the address before the page has read the setting.
+    if (typeof still === "boolean" ? still : matchMedia("(prefers-reduced-motion: reduce)").matches)
+      walkers.forEach(function (w) {
+        if (w.called !== place) return;
+        w.fig.position.set(w.tx, 0, w.tz);
+        w.fig.rotation.y = 0;
+        w.arrived = true;
+        if (w.onArrive) w.onArrive();
+      });
+    showComing();
   }
 
   // Camera moves ease toward a goal, so entering a project reads as going somewhere.
@@ -1196,7 +1314,7 @@
     wiringBtn.hidden = !inside || !inside.wires.children.length;
     hint.textContent = inside
       ? "A building is one app or package, a floor one module, as tall as its file count. Drag to orbit, scroll to zoom, click a floor."
-      : "Every project is one object, its shape by what the project is. People stand at the project they work on, and walk the way they work. Click a project to go inside, or a person.";
+      : "Every project is one object, its shape by what the project is. People stand at the project they work on, and walk the way they work. A pennant is a project short of someone: click it to send up its flare. Click a project to go inside.";
   }
 
   // The seats of the project the page is inside, and the one being looked at.
@@ -1367,9 +1485,15 @@
   };
 
   card.addEventListener("click", function (e) {
+    if (e.target.closest("[data-home]")) {
+      sendHome();
+      return showWorld();
+    }
+    var other = e.target.closest("[data-flare]");
+    if (other && flare) return sendFlare(flare.place, Number(other.dataset.flare));
     var back = e.target.closest("[data-back]");
     if (back)
-      return back.dataset.back === "shortlist" ? showShortlist() : ctx.back();
+      return back.dataset.back === "shortlist" && !ctx.coming ? showShortlist() : ctx.back();
     var by = e.target.closest("[data-sort]");
     if (by) {
       sort = by.dataset.sort;
@@ -1446,7 +1570,21 @@
       var hit = ray.intersectObjects(inside.floors)[0];
       return select(hit ? hit.object : null);
     }
-    // In the world a person is clicked first: they stand in front of the projects.
+    // In the world a pennant is clicked first: it sends up the project's flare.
+    var flags = places
+      .filter(function (p) {
+        return p.pennant && p.pennant.visible;
+      })
+      .map(function (p) {
+        return p.pennant;
+      });
+    var hitFlag = ray.intersectObjects(flags, true)[0];
+    if (hitFlag) {
+      var fl = hitFlag.object;
+      while (fl && !fl.userData.place) fl = fl.parent;
+      return sendFlare(fl.userData.place, 0);
+    }
+    // Then a person: they stand in front of the projects.
     var hitWho = ray.intersectObjects(
       walkers.map(function (w) {
         return w.fig;
@@ -1546,6 +1684,17 @@
     );
   }
   if (q.has("staffing") && People) showStaffing();
+  // ?flare=<project id> sends that project's flare; &ahead=<seconds> walks everyone on, for a still picture.
+  if (!inside && q.get("flare")) {
+    var called = places.filter(function (p) {
+      return p.entry.id === q.get("flare") && p.openSeats && p.openSeats.length;
+    })[0];
+    if (called) {
+      sendFlare(called, Number(q.get("need")) || 0);
+      for (var ah = 0; ah < (Number(q.get("ahead")) || 0) * 20; ah++) walk(0.05, ah * 0.05);
+      flare.born = -10;
+    }
+  }
   if (inside && q.has("seat") && seats[Number(q.get("seat"))]) {
     showShortlist(Number(q.get("seat")));
     if (q.get("candidate")) showCandidate(q.get("candidate"));
@@ -1554,6 +1703,16 @@
 
   var still = matchMedia("(prefers-reduced-motion: reduce)").matches;
   var clock = new THREE.Clock();
+  // Where the device asks for less motion nothing walks, and a button offers to play it anyway.
+  var motionBtn = document.getElementById("motion");
+  if (motionBtn) {
+    motionBtn.hidden = !still;
+    motionBtn.addEventListener("click", function () {
+      still = !still;
+      motionBtn.setAttribute("aria-pressed", String(!still));
+      motionBtn.textContent = still ? "Play motion" : "Motion on";
+    });
+  }
   var lastT = 0;
   function frame() {
     requestAnimationFrame(frame);
@@ -1579,6 +1738,17 @@
         if (p.icon.userData.tick) p.icon.userData.tick(t);
         if (p.dressed && p.dressed.tick) p.dressed.tick(t);
       });
+    }
+    if (flare && !inside) {
+      // With motion off the flare simply stands at its height.
+      var up = still ? 1 : Math.min(1, (t - flare.born) / 1.2);
+      var top = 12 + up * 12;
+      var beat = still ? 1 : 1 + Math.sin(t * 6) * 0.18;
+      flare.glow.position.y = flare.halo.position.y = top;
+      flare.glow.scale.setScalar(beat);
+      flare.halo.scale.setScalar(beat * 1.1);
+      flare.trail.scale.y = Math.max(0.01, top - 11);
+      flare.trail.position.y = 11 + (top - 11) / 2;
     }
     if (goal) {
       camera.position.lerp(goal.position, still ? 1 : 0.08);
