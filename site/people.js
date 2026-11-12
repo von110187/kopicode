@@ -605,6 +605,7 @@ window.GTECH_PEOPLE = (function () {
       " second: " +
       esc(p.first.says) +
       ".</p>" +
+      reading(p) +
       '<div class="facts"><div><b>' +
       p.contributions.toLocaleString("en-US") +
       "</b><span>contributions</span></div><div><b>" +
@@ -651,6 +652,41 @@ window.GTECH_PEOPLE = (function () {
     );
   }
 
+  // What a model said about these invented people, where tools/analyze.mjs has
+  // been run. The page works without it: the rule's score is always there.
+  function analysis() {
+    return window.GTECH_ANALYSIS || null;
+  }
+  function byModel(a) {
+    return (
+      '<span class="sub">Written by ' +
+      esc(a.model) +
+      " on " +
+      esc(a.generatedAt) +
+      ", about invented people.</span>"
+    );
+  }
+  var AI_BOX =
+    'style="background:#f1ece1;border-radius:8px;padding:8px 10px;margin:8px 0"';
+  function reading(p) {
+    var a = analysis();
+    return a && a.people[p.id]
+      ? "<div " +
+          AI_BOX +
+          '><p class="sub" style="margin:0 0 4px">AI reading</p><p style="margin:0 0 4px">' +
+          esc(a.people[p.id]) +
+          "</p>" +
+          byModel(a) +
+          "</div>"
+      : "";
+  }
+  function nameOf(id) {
+    var p = roster.filter(function (x) {
+      return x.id === id;
+    })[0];
+    return p ? p.name : id;
+  }
+
   var BACK =
     'style="border:0;background:none;padding:0;margin:0 0 8px;color:#5d6a62;font:inherit;font-size:12px;cursor:pointer;text-decoration:underline"';
   var NO_SCORE =
@@ -659,6 +695,8 @@ window.GTECH_PEOPLE = (function () {
   /** The people who could take a seat, best first, with the filters above them. */
   function shortlistCard(seat, d, list, filters) {
     filters = filters || {};
+    var a = analysis();
+    var ai = a && a.seats[seat.project + "/" + seat.trait.key];
     var box = function (key, text) {
       return (
         '<label style="display:block;font-size:12px;margin:2px 0;cursor:pointer"><input type="checkbox" data-filter="' +
@@ -683,6 +721,19 @@ window.GTECH_PEOPLE = (function () {
       " · " +
       esc(seat.reasons.join("; ")) +
       "</p>" +
+      (ai
+        ? "<div " +
+          AI_BOX +
+          '><p class="sub" style="margin:0 0 4px">AI\'s pick</p><p style="margin:0 0 4px"><b>' +
+          esc(nameOf(ai.pick)) +
+          ".</b> " +
+          esc(ai.why) +
+          '</p><p style="margin:0 0 4px"><b>Watch:</b> ' +
+          esc(ai.risk) +
+          "</p>" +
+          byModel(a) +
+          "</div>"
+        : '<p class="sub">No AI analysis of this seat: run <code>node tools/analyze.mjs</code>. The ranking below is the rule\'s alone.</p>') +
       box("open", "Open to joining another project") +
       box("spare", "At least " + SPARE + "% of a week spare") +
       (seat.area ? box("area", "Drawn to " + esc(seat.area) + " work") : "") +
@@ -696,6 +747,7 @@ window.GTECH_PEOPLE = (function () {
                 m.person.id +
                 '" style="cursor:pointer"><td>' +
                 esc(m.person.name) +
+                (ai && ai.pick === m.person.id ? " · AI's pick" : "") +
                 '<br><span class="sub">' +
                 groups(m)
                   .map(function (g) {
@@ -721,6 +773,8 @@ window.GTECH_PEOPLE = (function () {
   /** One person against one seat: every part of the score, then the person. */
   function candidateCard(m, seat, d) {
     var p = m.person;
+    var a = analysis();
+    var ai = a && a.seats[seat.project + "/" + seat.trait.key];
     return (
       "<button data-back=\"shortlist\" " +
       BACK +
@@ -765,7 +819,20 @@ window.GTECH_PEOPLE = (function () {
           );
         })
         .join("") +
-      '</table><p class="sub" style="margin:12px 0 4px">Traits</p>' +
+      "</table>" +
+      (ai && ai.candidates[p.id]
+        ? "<div " +
+          AI_BOX +
+          '><p class="sub" style="margin:0 0 4px">AI on this match' +
+          (ai.pick === p.id ? " · its pick for the seat" : "") +
+          '</p><p style="margin:0 0 4px">' +
+          esc(ai.candidates[p.id]) +
+          "</p>" +
+          byModel(a) +
+          "</div>"
+        : "") +
+      reading(p) +
+      '<p class="sub" style="margin:12px 0 4px">Traits</p>' +
       profile(p, p.projects) +
       (p.projects.length ? "" : '<p class="sub">On no project now.</p>') +
       NO_SCORE

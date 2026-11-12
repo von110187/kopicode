@@ -1,0 +1,12 @@
+{
+  "name": "gtech-city",
+  "private": true,
+  "description": "Tools for GTech City. The site itself has no build and no dependencies.",
+  "scripts": {
+    "analyze": "node tools/analyze.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
+    "zod": "^4.6.7"
+  }
+}
