@@ -1160,11 +1160,11 @@
           return gapRank(a.rule) - gapRank(b.rule);
         })
         .map(function (g) {
-          var id = g.apps[0] || "gap-" + g.problem;
+          // A problem with no project has nothing in the world to go to, so its row is no link.
           return (
-            '<tr data-entry="' +
-            esc(id) +
-            '"><td>' +
+            "<tr" +
+            (g.apps[0] ? ' data-entry="' + esc(g.apps[0]) + '"' : "") +
+            "><td>" +
             esc(g.says) +
             (g.dummy ? " (dummy)" : "") +
             "</td></tr>"
