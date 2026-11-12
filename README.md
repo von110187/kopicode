@@ -21,8 +21,30 @@ It is meant to answer, for someone in business development:
 2. What state is it in? Size, activity, share of tests, last change.
 3. Where are the gaps? Problems with no project, projects with no owner, overlap between projects. _(not built yet)_
 4. What does it cost and who do I ask? _(cost not built yet; the team shown is mock data)_
+5. Who should join a project that is short of someone? _(built on mock people: see below)_
 
 Agents that work between projects (business development first, then DevOps) are planned to read the same data and propose actions. None is built yet.
+
+## Who should join a project
+
+Each person has a **behaviour** (how they work: their pace, whether they work alone or with others, how often they review) and an **intention** (what they want: the trait they want to grow, to lead or to go deeper in a craft, the business area they are drawn to, whether they are open to moving). A project that is short of someone shows an open seat, and a seat lists who could take it.
+
+![A seat's shortlist, with the model's pick above the rule's ranking](docs/seat.png)
+
+It works in three layers, each shown on the page with its reasons:
+
+1. **Open seats, by rule.** A project opens a seat when under 10% of its source files are tests (Guardian), when it has had no commit in 90 days (Builder), when it has no owner or is not in the catalogue (Connector), or when nobody on its team has a trait. At most two seats a project.
+2. **A shortlist, by rule.** Everyone not on the team is scored out of 100: behaviour 40 (strength in the seat's trait, and the habit that suits the seat), intention 40 (wants to grow that trait, drawn to the seat's business area, open to moving, lead or specialise), time 20. A candidate's card shows every part of the score. The invented quality figure plays no part.
+3. **A model's reading.** `tools/analyze.mjs` sends the mock people and each seat's top five to Claude and writes `site/analysis.js`: a short reading of each person, a line on each candidate, the model's own pick and the main risk in it. The page shows this beside the rule's ranking and never in place of it. The model can see what the rule cannot, for example that a team already has two people who want to lead.
+
+![One candidate against one seat: the score's parts, then what the model said](docs/candidate.png)
+
+What to know before trusting any of it:
+
+- **Every person is invented.** The ranking shows how the match works and says nothing about anyone real. With real people this becomes profiling for staffing decisions, which needs consent, a way to contest a result and HR's agreement before any data goes in.
+- **The weights and the habits are guesses.** That a Builder seat suits working in bursts, or that intention is worth as much as behaviour, is a choice made for the demo with no data behind it.
+- **The committed `site/analysis.js` was written by Claude in a coding session**, from the exact input the tool prints with `--dry`, because no API key was to hand. Each box on the page says so. The tool's own call to the API has not been run.
+- **The model only picks among the rule's top five.** It can reorder them; it cannot bring in someone the rule ranked sixth.
 
 ## What is real and what is mock
 
@@ -31,7 +53,11 @@ Agents that work between projects (business development first, then DevOps) are 
 | A project's buildings, floors, file and line counts, dependencies, stack, services | Read from the repository by `tools/scan.mjs`                            |
 | Commits, contributor count, last commit                                            | Read from git, as counts only: no names                                 |
 | The object a project is drawn as                                                   | Matched by rule from its name and summary, or set by hand with `--kind` |
-| **People: names, the four traits, contributions, quality**                         | **Invented from a seed. Nothing is read from git, HR or an interview**  |
+| **People: names, the four traits, behaviour, intention, contributions, quality**   | **Invented from a seed. Nothing is read from git, HR or an interview**  |
+| Why a seat is open: the share of tests, the days since the last commit             | Read from the repository and git                                        |
+| Why a seat is open: no owner, not in the catalogue, a trait the team lacks         | The dummy catalogue and the invented team                               |
+| A candidate's fit score                                                            | Worked out by rule from the invented people                             |
+| The AI reading, the AI's pick and its risk                                         | Written by a model about the invented people; labelled with which model |
 
 ## Run it
 
@@ -42,6 +68,21 @@ open site/index.html
 
 Kinds: `city`, `map-stack`, `racks`, `houses`, `tunnel`, `robot`.
 
-Scanned districts are written to `site/districts/` and are not committed: a district file holds a repository's structure, and a private repository's structure stays off the remote.
+Scanned districts are written to `site/districts/` and are not committed: a district file holds a repository's structure, and a private repository's structure stays off the remote. The one exception is this repository's own scan (`kopicode`), committed so that the deployed site has a project to enter.
+
+Scanning adds the project's id to `site/districts/index.js`, which is committed. Check `git status` before committing after a scan, so that a private project's id does not reach the remote.
+
+To have a model read the people and the seats:
+
+```
+npm install
+export ANTHROPIC_API_KEY=...
+node tools/analyze.mjs --dry   # prints what would be sent, and sends nothing
+node tools/analyze.mjs         # writes site/analysis.js
+```
+
+The key is read from the environment and is never in the page. `site/analysis.js` is committed and names the projects it covers, so check a new one names no private repository before committing it. It carries its date and is not checked against the data: run the tool again after scanning a project or changing a rule.
+
+The site itself has no build and no dependencies; `package.json` is there for the tool alone. It deploys as the `site/` folder, as it is.
 
 `tools/shot.sh <out.png> [query]` takes a screenshot in headless Chrome, for example `tools/shot.sh /tmp/a.png "enter=<id>&explode=1"`.
