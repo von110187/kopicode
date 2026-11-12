@@ -20,7 +20,11 @@ export type Department = {
   skills: string[]; // the skills this department is the home of
 };
 
-export type Tribe = { id: string; name: string; mission: string };
+// A company of the group. Its tribes are its people; a company cuts across
+// departments and domains like a tribe does, one level up.
+export type Company = { id: string; name: string };
+
+export type Tribe = { id: string; name: string; mission: string; company: string };
 
 export type Squad = {
   id: string;
@@ -59,6 +63,7 @@ export type Membership = {
 };
 
 export type Org = {
+  companies: Company[];
   departments: Department[];
   tribes: Tribe[];
   squads: Squad[];

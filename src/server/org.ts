@@ -59,6 +59,11 @@ function build() {
   };
 }
 
+export type Names = Record<
+  "company" | "tribe" | "squad" | "squadTribe" | "department" | "guild" | "domain" | "group" | "chapter",
+  Record<string, string>
+>;
+
 export type Lacking = { skill: string; squads: number; borrowable: number };
 
 export type OrgView = {
@@ -75,7 +80,7 @@ export type OrgView = {
   // Domains across the groups shown: what each holds and lacks, and who could share.
   matrix: { rows: { id: string; name: string }[]; families: string[]; cells: Record<string, DomainCell[]> };
   collabs: Collab[];
-  names: Record<"tribe" | "squad" | "squadTribe" | "department" | "guild" | "domain" | "group", Record<string, string>>;
+  names: Names;
 };
 
 // The metrics of the groups picked in one grouping, and, when asked, their members.
@@ -88,6 +93,7 @@ export const getOrgView = createServerFn({ method: "GET" })
     const { level, groups, view } = data;
 
     const all: (RollUp | SquadMetrics | DepartmentMetrics)[] = {
+      company: metrics.companies,
       department: metrics.departments,
       tribe: metrics.tribes,
       squad: metrics.squads,
@@ -101,7 +107,9 @@ export const getOrgView = createServerFn({ method: "GET" })
     const chapterDept = new Map(org.chapters.map((c) => [c.id, c.department]));
 
     const inGroup = (m: MemberRow, id: string) =>
-      level === "department"
+      level === "company"
+        ? m.companies.includes(id)
+        : level === "department"
         ? m.department === id
         : level === "tribe"
           ? m.tribes.includes(id)
@@ -115,9 +123,12 @@ export const getOrgView = createServerFn({ method: "GET" })
 
     // Domains are read across tribes when the grouping is the domains themselves.
     const across: Exclude<Level, "domain"> = level === "domain" ? "tribe" : level;
+    const companyOf = new Map(org.tribes.map((t) => [t.id, t.company]));
     const membersOf = (id: string) =>
       org.memberships.filter((m) =>
-        across === "department"
+        across === "company"
+          ? companyOf.get(tribeOf.get(m.squad)!) === id
+          : across === "department"
           ? chapterDept.get(m.chapter) === id
           : across === "tribe"
             ? tribeOf.get(m.squad) === id
@@ -129,6 +140,7 @@ export const getOrgView = createServerFn({ method: "GET" })
       );
     if (!cached.domains.has(across)) {
       const list: GroupMembers[] = {
+        company: metrics.companies,
         department: metrics.departments,
         tribe: metrics.tribes,
         squad: metrics.squads,
@@ -151,18 +163,9 @@ export const getOrgView = createServerFn({ method: "GET" })
     const families = level === "domain" ? shown.map((s) => s.id) : FAMILIES.map((f) => f.id);
     const rowIds = new Set(rowGroups.map((g) => g.id));
 
-    const lacking = new Map<string, Lacking>();
-    for (const sq of metrics.squads) {
-      for (const skill of sq.missing) {
-        const l = lacking.get(skill) ?? { skill, squads: 0, borrowable: 0 };
-        l.squads++;
-        if (sq.borrow.some((b) => b.skill === skill)) l.borrowable++;
-        lacking.set(skill, l);
-      }
-    }
-
     const groupNames = Object.fromEntries(
       {
+        company: metrics.companies,
         department: metrics.departments,
         tribe: metrics.tribes,
         squad: metrics.squads,
@@ -172,7 +175,7 @@ export const getOrgView = createServerFn({ method: "GET" })
     );
 
     return {
-      lacking: [...lacking.values()].sort((a, b) => b.squads - a.squads),
+      lacking: lackingOf(),
       totals: { ...metrics.totals, roster: cached.roster },
       level,
       view,
@@ -186,7 +189,7 @@ export const getOrgView = createServerFn({ method: "GET" })
       departments: level === "department" ? metrics.departments.filter((d) => shown.includes(d)) : [],
       squads: level === "squad" ? metrics.squads.filter((s) => shown.includes(s)) : [],
       rollups:
-        level === "tribe" || level === "chapter" || level === "guild" || level === "domain"
+        level === "company" || level === "tribe" || level === "chapter" || level === "guild" || level === "domain"
           ? (shown as RollUp[])
           : [],
       members:
@@ -204,13 +207,67 @@ export const getOrgView = createServerFn({ method: "GET" })
         .filter((c) => rowIds.has(c.group) && families.includes(c.family))
         .slice(0, 40),
       names: {
+        ...baseNames(),
+        group: groupNames,
+      },
+    };
+  });
+
+function baseNames(): Omit<Names, "group"> {
+  const { org, metrics } = cached!;
+  return {
+        company: Object.fromEntries(org.companies.map((c) => [c.id, c.name])),
+        chapter: Object.fromEntries(metrics.chapters.map((c) => [c.id, c.name])),
         tribe: Object.fromEntries(org.tribes.map((t) => [t.id, t.name])),
         squad: Object.fromEntries(org.squads.map((s) => [s.id, s.name])),
         squadTribe: Object.fromEntries(org.squads.map((s) => [s.id, s.tribe])),
         department: Object.fromEntries(org.departments.map((d) => [d.id, d.name])),
         guild: Object.fromEntries(org.guilds.map((g) => [g.id, g.name])),
         domain: Object.fromEntries(FAMILIES.map((f) => [f.id, f.name])),
-        group: groupNames,
-      },
-    };
-  });
+  };
+}
+
+export type WorldGroup = { id: string; name: string; headcount: number };
+
+export type OrgWorld = {
+  members: MemberRow[];
+  groups: Record<Level, WorldGroup[]>;
+  names: Omit<Names, "group">;
+  totals: OrgView["totals"];
+  lacking: Lacking[];
+};
+
+// Everyone, once: the world shows all people, and any grouping highlights among them.
+export const getOrgWorld = createServerFn({ method: "GET" }).handler(async (): Promise<OrgWorld> => {
+  cached ??= build();
+  const { metrics, members } = cached;
+  const pick = (xs: { id: string; name: string; headcount: number }[]) =>
+    xs.map(({ id, name, headcount }) => ({ id, name, headcount }));
+  return {
+    members,
+    groups: {
+      company: pick(metrics.companies),
+      department: pick(metrics.departments),
+      tribe: pick(metrics.tribes),
+      squad: pick(metrics.squads),
+      chapter: pick(metrics.chapters),
+      guild: pick(metrics.guilds),
+      domain: pick(metrics.domains),
+    },
+    names: baseNames(),
+    totals: { ...metrics.totals, roster: cached.roster },
+    lacking: lackingOf(),
+  };
+});
+
+function lackingOf(): Lacking[] {
+  const lacking = new Map<string, Lacking>();
+  for (const sq of cached!.metrics.squads)
+    for (const skill of sq.missing) {
+      const l = lacking.get(skill) ?? { skill, squads: 0, borrowable: 0 };
+      l.squads++;
+      if (sq.borrow.some((b) => b.skill === skill)) l.borrowable++;
+      lacking.set(skill, l);
+    }
+  return [...lacking.values()].sort((a, b) => b.squads - a.squads);
+}

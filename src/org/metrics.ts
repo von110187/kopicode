@@ -310,6 +310,11 @@ export function computeOrg(org: Org, valuesOf: ValuesOf) {
     return over(g.id, g.name, org.memberships.filter((m) => people.has(m.person)));
   });
 
+  const companies = org.companies.map((c) => {
+    const tribes = new Set(org.tribes.filter((t) => t.company === c.id).map((t) => t.id));
+    return over(c.id, c.name, org.memberships.filter((m) => tribes.has(squadTribe.get(m.squad)!)));
+  });
+
   // Domains cut across everything: a family's people are whoever has one of its skills.
   const domains = FAMILIES.map((f) => {
     const ids = new Set(f.skills.map((x) => x.id));
@@ -349,6 +354,7 @@ export function computeOrg(org: Org, valuesOf: ValuesOf) {
     chapters,
     guilds,
     domains,
+    companies,
   };
 }
 
@@ -435,6 +441,7 @@ export type MemberRow = {
   source: "roster" | "stand-in" | null;
   intention: string | null;
   department: DepartmentId;
+  companies: string[];
   tribes: string[];
   squads: string[];
   chapter: string;
@@ -460,6 +467,7 @@ export function memberRows(
 ): MemberRow[] {
   const chapter = new Map(org.chapters.map((c) => [c.id, c]));
   const squad = new Map(org.squads.map((s) => [s.id, s]));
+  const companyOf = new Map(org.tribes.map((t) => [t.id, t.company]));
   const guildsOf = new Map<string, string[]>();
   for (const [g, people] of Object.entries(org.guildMembers))
     for (const p of people) guildsOf.set(p, [...(guildsOf.get(p) ?? []), g]);
@@ -477,6 +485,7 @@ export function memberRows(
       intention: v?.intention ?? null,
       department: chapter.get(ms[0].chapter)!.department,
       tribes: [...new Set(ms.map((m) => squad.get(m.squad)!.tribe))],
+      companies: [...new Set(ms.map((m) => companyOf.get(squad.get(m.squad)!.tribe)!))],
       squads: ms.map((m) => m.squad),
       chapter: ms[0].chapter,
       guilds: guildsOf.get(person) ?? [],

@@ -6,6 +6,7 @@ import { seeded } from "./random";
 import { FAMILIES } from "./skills";
 import type {
   Chapter,
+  Company,
   Department,
   DepartmentId,
   Intention,
@@ -51,9 +52,20 @@ const DEPARTMENT_INTENTIONS: Intention[] = (
   needs: [],
 }));
 
+// The group's companies, as a demo would draw them: invented, not its real structure.
+export const COMPANIES: Company[] = [
+  { id: "digital", name: "GTech Digital" },
+  { id: "engineering", name: "Engineering & Construction" },
+  { id: "rail", name: "Rail Joint Venture" },
+  { id: "water", name: "Water & Energy" },
+  { id: "land", name: "Land & Property" },
+  { id: "group", name: "Group Office" },
+];
+
 // Each tribe: its mission, the departments its squads draw from, the skills
 // its squads need, the department intentions it serves and its squads' themes.
-type TribeSpec = Tribe & {
+type TribeSpec = Omit<Tribe, "company"> & {
+  company: string;
   areas?: ("Serve" | "Work" | "Build")[]; // catalogue apps of these areas get squads here
   mix: Partial<Record<DepartmentId, number>>;
   needs: string[];
@@ -65,6 +77,7 @@ type TribeSpec = Tribe & {
 export const TRIBES: TribeSpec[] = [
   {
     id: "digital",
+    company: "digital",
     name: "Digital Products",
     mission: "Products for authorities, customers and site teams",
     areas: ["Serve", "Work"],
@@ -76,6 +89,7 @@ export const TRIBES: TribeSpec[] = [
   },
   {
     id: "platform",
+    company: "digital",
     name: "Platform, Data & AI",
     mission: "The shared cloud, data and models every product stands on",
     areas: ["Build"],
@@ -87,6 +101,7 @@ export const TRIBES: TribeSpec[] = [
   },
   {
     id: "rail",
+    company: "rail",
     name: "Rail & Tunnelling",
     mission: "Underground lines, stations and their systems",
     mix: { engineering: 7, finance: 1, product: 0.3, hr: 0.2 },
@@ -97,6 +112,7 @@ export const TRIBES: TribeSpec[] = [
   },
   {
     id: "highways",
+    company: "engineering",
     name: "Highways & Bridges",
     mission: "Expressways, interchanges and bridges",
     mix: { engineering: 7, finance: 1.2, "sales-marketing": 0.2 },
@@ -107,6 +123,7 @@ export const TRIBES: TribeSpec[] = [
   },
   {
     id: "water",
+    company: "water",
     name: "Water & Environment",
     mission: "Water, sewerage, flood mitigation and reclamation",
     mix: { engineering: 7, finance: 0.8, "sales-marketing": 0.3 },
@@ -117,6 +134,7 @@ export const TRIBES: TribeSpec[] = [
   },
   {
     id: "property",
+    company: "land",
     name: "Property & Townships",
     mission: "Townships planned, built, sold and looked after",
     mix: { "sales-marketing": 3, engineering: 3, finance: 1, product: 0.4 },
@@ -127,6 +145,7 @@ export const TRIBES: TribeSpec[] = [
   },
   {
     id: "corporate",
+    company: "group",
     name: "Growth & Corporate",
     mission: "Win work, and keep money and people in order",
     mix: { "sales-marketing": 2.5, finance: 3, hr: 2.5, engineering: 0.5 },
@@ -155,7 +174,7 @@ export const personId = (n: number) => `p${String(n).padStart(4, "0")}`;
 
 export function mockOrg(): Org {
   const r = seeded("gtech-org");
-  const tribes: Tribe[] = TRIBES.map(({ id, name, mission }) => ({ id, name, mission }));
+  const tribes: Tribe[] = TRIBES.map(({ id, name, mission, company }) => ({ id, name, mission, company }));
   const chapters: Chapter[] = TRIBES.flatMap((t) =>
     (Object.keys(t.mix) as DepartmentId[]).map((d) => ({
       id: `${t.id}:${d}`,
@@ -243,6 +262,7 @@ export function mockOrg(): Org {
     if (r.chance(0.3)) guildMembers[r.pick(GUILDS).id].push(personId(i));
 
   return {
+    companies: COMPANIES,
     departments: DEPARTMENTS,
     tribes,
     squads,
