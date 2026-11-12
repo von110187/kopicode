@@ -1223,6 +1223,11 @@ window.GTECH_PEOPLE = (function () {
     staffingCard: staffingCard,
     personCard: personCard,
     ghost: ghost,
+    person: function (id) {
+      return roster.filter(function (x) {
+        return x.id === id;
+      })[0];
+    },
     teamCard: teamCard,
     seats: seats,
     seatsCard: seatsCard,

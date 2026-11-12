@@ -507,6 +507,31 @@
     }
     var spot = new THREE.Group();
     if (p.flag) spot.add(p.flag);
+    // A dot above a project for each seat it has open, in the colour of the trait it needs.
+    var P = window.GTECH_PEOPLE;
+    if (P && !entry.problem) {
+      var open = P.seats(
+        d || P.projectOf(entry.id),
+        entry.app,
+        cat.problems,
+        new Date(),
+      );
+      open.forEach(function (s, k) {
+        spot.add(
+          at(
+            new THREE.Mesh(
+              new THREE.SphereGeometry(1.15, 16, 12),
+              new THREE.MeshLambertMaterial({
+                color: new THREE.Color().setHSL(s.trait.hue / 360, 0.6, 0.55),
+              }),
+            ),
+            (k - (open.length - 1) / 2) * 3,
+            13.2,
+            0,
+          ),
+        );
+      });
+    }
     spot.position.set(
       ((i % cols) - (cols - 1) / 2) * SPACING,
       0,
@@ -644,6 +669,7 @@
   var ctx = null;
   /** Works out a project's open seats, makes it the one in hand, and returns their card. */
   function seatsOf(entry, back) {
+    if (typeof setGhost === "function") setGhost(null);
     var P = window.GTECH_PEOPLE;
     var d = P && (entry.district || P.projectOf(entry.id));
     if (!d) return "";
@@ -892,7 +918,7 @@
     wiringBtn.hidden = !inside || !inside.wires.children.length;
     hint.textContent = inside
       ? "A building is one app or package, a floor one module, as tall as its file count. Drag to orbit, scroll to zoom, click a floor."
-      : "Every project is one object, its shape by what the project is. Click one to go inside.";
+      : "Every project is one object, its shape by what the project is. A dot above one is a seat it has open. Click one to go inside.";
   }
 
   // The seats of the project the page is inside, and the one being looked at.
@@ -929,11 +955,48 @@
       { filters: filters, sort: sort },
       ctx.from,
     );
+    // Whoever heads the list as it is shown stands in the seat.
+    var first = card.querySelector("tr[data-candidate]");
+    setGhost(first ? People.person(first.dataset.candidate) : null);
     card.scrollTop = 0;
+  }
+
+  // A candidate stands, see-through, at the end of the team they would join:
+  // only inside the project the seat belongs to, where there is a team to stand by.
+  var ghost = null;
+  function setGhost(person) {
+    if (ghost) {
+      ghost.parent.remove(ghost);
+      ghost = null;
+    }
+    if (!person || !inside || !ctx || ctx.d !== inside.district) return;
+    var figs = inside.people;
+    if (!figs.length) return;
+    var x = Math.max.apply(
+      null,
+      figs.map(function (f) {
+        return f.position.x;
+      }),
+    );
+    ghost = new THREE.Group();
+    ghost.add(People.ghost(person));
+    // A ring on the ground marks the seat itself.
+    var ring = new THREE.Mesh(
+      new THREE.TorusGeometry(1.7, 0.14, 8, 32),
+      new THREE.MeshLambertMaterial({
+        color: new THREE.Color().setHSL(seat.trait.hue / 360, 0.6, 0.5),
+      }),
+    );
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 0.12;
+    ghost.add(ring);
+    ghost.position.set(x + 4.6, 0, figs[0].position.z);
+    inside.group.add(ghost);
   }
 
   /** Every open seat and every person, on one card. */
   function showStaffing() {
+    setGhost(null);
     selected = null;
     paint();
     seat = null;
@@ -984,6 +1047,7 @@
     })[0];
     if (!m) return;
     card.innerHTML = People.candidateCard(m, seat, ctx.d);
+    setGhost(m.person);
     card.scrollTop = 0;
   }
 
@@ -1000,6 +1064,7 @@
   }
 
   function leave() {
+    setGhost(null);
     if (inside) inside.group.visible = false;
     inside = null;
     selected = null;
@@ -1077,6 +1142,7 @@
       camera,
     );
     if (inside) {
+      setGhost(null);
       // A person stands in front of the buildings, so a click on one is theirs first.
       var who = ray.intersectObjects(inside.people, true)[0];
       if (who) {
