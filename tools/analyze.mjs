@@ -39,10 +39,6 @@ run("people.js");
 const People = window.GTECH_PEOPLE;
 const cat = window.GTECH_CATALOGUE;
 const districts = window.GTECH_DISTRICTS || [];
-if (!districts.length) {
-  console.error("No project scanned yet: run tools/scan.mjs first.");
-  process.exit(1);
-}
 
 // Teams are drawn exactly as the page draws them, from the same list.
 const entries = cat.apps
@@ -58,9 +54,10 @@ const entries = cat.apps
       .map((d) => ({ id: d.id, name: d.name, app: null, district: d })),
   );
 People.staff(entries);
-const projects = entries
-  .filter((e) => e.district)
-  .map((e) => ({ app: e.app, d: e.district }));
+const projects = entries.map((e) => ({
+  app: e.app,
+  d: People.projectOf(e.id),
+}));
 
 const today = new Date();
 const seats = projects.flatMap(({ app, d }) =>

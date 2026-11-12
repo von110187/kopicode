@@ -640,6 +640,19 @@
     );
   }
 
+  // The project whose seats the card is on, entered or not, and the way back to its card.
+  var ctx = null;
+  /** Works out a project's open seats, makes it the one in hand, and returns their card. */
+  function seatsOf(entry, back) {
+    var P = window.GTECH_PEOPLE;
+    var d = P && (entry.district || P.projectOf(entry.id));
+    if (!d) return "";
+    ctx = { d: d, back: back };
+    seat = null;
+    seats = P.seats(d, entry.app, cat.problems, new Date());
+    return P.seatsCard(seats);
+  }
+
   function showEntry(entry) {
     card.hidden = false;
     card.innerHTML = entry.problem
@@ -654,6 +667,9 @@
         "</h2>" +
         businessHtml(entry) +
         (window.GTECH_PEOPLE ? window.GTECH_PEOPLE.teamCard(entry.id) : "") +
+        seatsOf(entry, function () {
+          showEntry(entry);
+        }) +
         (entry.district
           ? ""
           : '<p class="sub" style="margin-top:10px">No repository scanned for it yet, so it has no inside.</p>') +
@@ -889,12 +905,8 @@
   /** The card of the project the page is inside: its facts, its seats, its business. */
   function showProject() {
     var p = inside;
-    seat = null;
     showDistrict(p.district);
-    if (People) {
-      seats = People.seats(p.district, p.entry.app, cat.problems, new Date());
-      card.innerHTML += People.seatsCard(seats);
-    }
+    card.innerHTML += seatsOf(p.entry, showProject);
     card.innerHTML +=
       '<h2 style="margin-top:14px;font-size:14px">Business</h2>' +
       businessHtml(p.entry) +
@@ -911,7 +923,7 @@
     selected = null;
     paint();
     card.hidden = false;
-    card.innerHTML = People.shortlistCard(seat, inside.district, {
+    card.innerHTML = People.shortlistCard(seat, ctx.d, {
       filters: filters,
       sort: sort,
     });
@@ -920,11 +932,11 @@
 
   function showCandidate(id) {
     // Scored without the filters, so a person is the same whatever is ticked.
-    var m = People.match(seat, inside.district).filter(function (x) {
+    var m = People.match(seat, ctx.d).filter(function (x) {
       return x.person.id === id;
     })[0];
     if (!m) return;
-    card.innerHTML = People.candidateCard(m, seat, inside.district);
+    card.innerHTML = People.candidateCard(m, seat, ctx.d);
     card.scrollTop = 0;
   }
 
@@ -962,7 +974,7 @@
   card.addEventListener("click", function (e) {
     var back = e.target.closest("[data-back]");
     if (back)
-      return back.dataset.back === "shortlist" ? showShortlist() : showProject();
+      return back.dataset.back === "shortlist" ? showShortlist() : ctx.back();
     var by = e.target.closest("[data-sort]");
     if (by) {
       sort = by.dataset.sort;

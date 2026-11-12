@@ -201,12 +201,13 @@ window.GTECH_PEOPLE = (function () {
 
   var THIN_TESTS = 10; // % of source files that are tests, below which quality is a need
   var QUIET_DAYS = 90; // days since the last commit, after which delivery is a need
+  var OLD_DOCS = 180; // days since the documentation was updated, after which quality is a need
   var MAX_SEATS = 2;
 
   /**
    * The seats a project has open, by rule alone: which trait it is short of,
    * and why. A reason from the project's state (its tests, its last commit,
-   * its owner) weighs 2; a trait nobody on the team has weighs 1. `app` is the
+   * its documentation, its owner) weighs 2; a trait nobody on the team has weighs 1. `app` is the
    * project's catalogue entry, or null where the catalogue does not list it;
    * `problems` are the catalogue's business problems.
    */
@@ -218,9 +219,11 @@ window.GTECH_PEOPLE = (function () {
       why[key].weight += weight;
       why[key].reasons.push(says);
     }
-    var share = d.totals.files
-      ? Math.round((d.totals.tests / d.totals.files) * 100)
-      : null;
+    // A project with no scanned repository has no tests or commits to read.
+    var share =
+      d.totals && d.totals.files
+        ? Math.round((d.totals.tests / d.totals.files) * 100)
+        : null;
     if (share != null && share < THIN_TESTS)
       add("guardian", 2, share + "% of its source files are tests");
     var quiet = d.git.lastCommit
@@ -230,6 +233,12 @@ window.GTECH_PEOPLE = (function () {
       add("builder", 2, "no commit in " + quiet + " days");
     if (!app) add("connector", 2, "it is not in the catalogue");
     else if (!app.owner) add("connector", 2, "it has no owner");
+    var old =
+      app && app.docs
+        ? Math.floor((today - new Date(app.docs + "T00:00:00")) / 86400000)
+        : null;
+    if (old != null && old > OLD_DOCS)
+      add("guardian", 2, "its documentation is " + old + " days old");
     TRAITS.forEach(function (t) {
       var has = team.some(function (m) {
         return m.first.key === t.key || m.second.key === t.key;
@@ -497,12 +506,19 @@ window.GTECH_PEOPLE = (function () {
    * repository to count, so their size and commits are invented from a seed.
    * `list` is [{ id, name, district }], `district` null where none is scanned.
    */
+  var projects = {};
+  /** A project as the people module knows it: its scan, or a stand-in with a mock team size. */
+  function projectOf(id) {
+    return projects[id] || null;
+  }
+
   function staff(list) {
     list
       .filter(function (e) {
         return e.district;
       })
       .forEach(function (e) {
+        projects[e.id] = e.district;
         teamOf(e.district);
       });
     list
@@ -511,14 +527,16 @@ window.GTECH_PEOPLE = (function () {
       })
       .forEach(function (e) {
         var rnd = seeded("size:" + e.id);
-        teamOf({
+        teamOf(
+          (projects[e.id] = {
           id: e.id,
           name: e.name,
           git: {
             contributors: 2 + Math.floor(rnd() * 2),
             commits: 80 + Math.round(rnd() * 900),
           },
-        });
+          }),
+        );
       });
   }
 
@@ -814,7 +832,9 @@ window.GTECH_PEOPLE = (function () {
       THIN_TESTS +
       "% tests, no commit in " +
       QUIET_DAYS +
-      " days, no owner, or a trait nobody on the team has. The tests and commit figures are read from the repository; the team is invented. Click a seat for who could take it.</p>"
+      " days, documentation over " +
+      OLD_DOCS +
+      " days old, no owner, or a trait nobody on the team has. Tests and commits are read from a scanned repository; the catalogue and the team are invented. Click a seat for who could take it.</p>"
     );
   }
 
@@ -1072,6 +1092,7 @@ window.GTECH_PEOPLE = (function () {
     roster: roster,
     teamOf: teamOf,
     staff: staff,
+    projectOf: projectOf,
     teamCard: teamCard,
     seats: seats,
     seatsCard: seatsCard,
