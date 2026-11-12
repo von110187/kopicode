@@ -881,6 +881,15 @@
     p.group.visible = true;
     paint();
     showDistrict(p.district);
+    if (window.GTECH_PEOPLE)
+      card.innerHTML += window.GTECH_PEOPLE.seatsCard(
+        window.GTECH_PEOPLE.seats(
+          p.district,
+          p.entry.app,
+          cat.problems,
+          new Date(),
+        ),
+      );
     card.innerHTML +=
       '<h2 style="margin-top:14px;font-size:14px">Business</h2>' +
       businessHtml(p.entry) +

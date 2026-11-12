@@ -199,6 +199,68 @@ window.GTECH_PEOPLE = (function () {
     return teams[d.id];
   }
 
+  var THIN_TESTS = 10; // % of source files that are tests, below which quality is a need
+  var QUIET_DAYS = 90; // days since the last commit, after which delivery is a need
+  var MAX_SEATS = 2;
+
+  /**
+   * The seats a project has open, by rule alone: which trait it is short of,
+   * and why. A reason from the project's state (its tests, its last commit,
+   * its owner) weighs 2; a trait nobody on the team has weighs 1. `app` is the
+   * project's catalogue entry, or null where the catalogue does not list it;
+   * `problems` are the catalogue's business problems.
+   */
+  function seats(d, app, problems, today) {
+    var team = teamOf(d);
+    var why = {};
+    function add(key, weight, says) {
+      why[key] = why[key] || { weight: 0, reasons: [] };
+      why[key].weight += weight;
+      why[key].reasons.push(says);
+    }
+    var share = d.totals.files
+      ? Math.round((d.totals.tests / d.totals.files) * 100)
+      : null;
+    if (share != null && share < THIN_TESTS)
+      add("guardian", 2, share + "% of its source files are tests");
+    var quiet = d.git.lastCommit
+      ? Math.floor((today - new Date(d.git.lastCommit + "T00:00:00")) / 86400000)
+      : null;
+    if (quiet != null && quiet > QUIET_DAYS)
+      add("builder", 2, "no commit in " + quiet + " days");
+    if (!app) add("connector", 2, "it is not in the catalogue");
+    else if (!app.owner) add("connector", 2, "it has no owner");
+    TRAITS.forEach(function (t) {
+      var has = team.some(function (m) {
+        return m.first.key === t.key || m.second.key === t.key;
+      });
+      if (!has)
+        add(t.key, 1, "nobody on the team is a " + t.name.toLowerCase());
+    });
+    // The business area the seat sits in, for a person drawn to that work.
+    var area = null;
+    if (app && app.problems.length)
+      (problems || []).forEach(function (pr) {
+        if (!area && app.problems.indexOf(pr.id) >= 0) area = pr.area;
+      });
+    return TRAITS.filter(function (t) {
+      return why[t.key];
+    })
+      .sort(function (a, b) {
+        return why[b.key].weight - why[a.key].weight;
+      })
+      .slice(0, MAX_SEATS)
+      .map(function (t) {
+        return {
+          project: d.id,
+          trait: t,
+          area: area,
+          weight: why[t.key].weight,
+          reasons: why[t.key].reasons,
+        };
+      });
+  }
+
   function mat(c) {
     return new THREE.MeshLambertMaterial({ color: c });
   }
@@ -428,6 +490,38 @@ window.GTECH_PEOPLE = (function () {
     );
   }
 
+  /** A project's open seats, for its card. */
+  function seatsCard(list) {
+    return (
+      '<h2 style="margin-top:14px;font-size:14px">Open seats</h2>' +
+      (list.length
+        ? "<table>" +
+          list
+            .map(function (s) {
+              return (
+                '<tr><td style="width:84px"><b style="color:hsl(' +
+                s.trait.hue +
+                ',55%,40%)">' +
+                esc(s.trait.name) +
+                "</b></td><td>" +
+                esc(s.trait.role) +
+                (s.area ? " · " + esc(s.area) : "") +
+                '<br><span class="sub">' +
+                esc(s.reasons.join("; ")) +
+                "</span></td></tr>"
+              );
+            })
+            .join("") +
+          "</table>"
+        : "<p>None: no rule finds this team short of anyone.</p>") +
+      '<p class="sub" style="margin-top:8px">A seat is opened by rule: under ' +
+      THIN_TESTS +
+      "% tests, no commit in " +
+      QUIET_DAYS +
+      " days, no owner, or a trait nobody on the team has. The tests and commit figures are read from the repository; the team is invented.</p>"
+    );
+  }
+
   return {
     stand: stand,
     card: card,
@@ -435,6 +529,8 @@ window.GTECH_PEOPLE = (function () {
     BEHAVIOURS: BEHAVIOURS,
     roster: roster,
     teamOf: teamOf,
+    seats: seats,
+    seatsCard: seatsCard,
     capacity: capacity,
   };
 })();
