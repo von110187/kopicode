@@ -1,0 +1,1334 @@
+{
+ "TRAITS": [
+  {
+   "key": "builder",
+   "name": "Builder"
+  },
+  {
+   "key": "thinker",
+   "name": "Thinker"
+  },
+  {
+   "key": "connector",
+   "name": "Connector"
+  },
+  {
+   "key": "guardian",
+   "name": "Guardian"
+  }
+ ],
+ "roster": [
+  {
+   "id": "p1",
+   "name": "Hafiz",
+   "scores": [
+    90,
+    64,
+    64,
+    42
+   ],
+   "behaviour": {
+    "pace": 41,
+    "together": 5,
+    "review": 33
+   },
+   "intention": {
+    "area": "Serve",
+    "path": {
+     "key": "specialise"
+    },
+    "openToMove": false,
+    "grow": {
+     "name": "Connector"
+    }
+   },
+   "quality": 65,
+   "projects": [
+    {
+     "id": "portsubmit",
+     "contributions": 75
+    },
+    {
+     "id": "keyring",
+     "contributions": 124
+    }
+   ]
+  },
+  {
+   "id": "p2",
+   "name": "Gopal",
+   "scores": [
+    87,
+    82,
+    94,
+    35
+   ],
+   "behaviour": {
+    "pace": 17,
+    "together": 33,
+    "review": 60
+   },
+   "intention": {
+    "area": "Build",
+    "path": {
+     "key": "lead"
+    },
+    "openToMove": true,
+    "grow": {
+     "name": "Thinker"
+    }
+   },
+   "quality": 74,
+   "projects": [
+    {
+     "id": "plancheck",
+     "contributions": 290
+    }
+   ]
+  },
+  {
+   "id": "p3",
+   "name": "Tan",
+   "scores": [
+    34,
+    56,
+    94,
+    91
+   ],
+   "behaviour": {
+    "pace": 78,
+    "together": 96,
+    "review": 31
+   },
+   "intention": {
+    "area": "Work",
+    "path": {
+     "key": "specialise"
+    },
+    "openToMove": false,
+    "grow": {
+     "name": "Thinker"
+    }
+   },
+   "quality": 87,
+   "projects": []
+  },
+  {
+   "id": "p4",
+   "name": "Farah",
+   "scores": [
+    71,
+    62,
+    27,
+    25
+   ],
+   "behaviour": {
+    "pace": 36,
+    "together": 44,
+    "review": 61
+   },
+   "intention": {
+    "area": "Build",
+    "path": {
+     "key": "lead"
+    },
+    "openToMove": false,
+    "grow": {
+     "name": "Guardian"
+    }
+   },
+   "quality": 68,
+   "projects": []
+  },
+  {
+   "id": "p5",
+   "name": "Ravi",
+   "scores": [
+    81,
+    85,
+    76,
+    64
+   ],
+   "behaviour": {
+    "pace": 72,
+    "together": 53,
+    "review": 95
+   },
+   "intention": {
+    "area": "Build",
+    "path": {
+     "key": "specialise"
+    },
+    "openToMove": true,
+    "grow": {
+     "name": "Builder"
+    }
+   },
+   "quality": 83,
+   "projects": [
+    {
+     "id": "papertrail",
+     "contributions": 154
+    },
+    {
+     "id": "plancheck",
+     "contributions": 362
+    }
+   ]
+  },
+  {
+   "id": "p6",
+   "name": "Lokman",
+   "scores": [
+    89,
+    85,
+    28,
+    42
+   ],
+   "behaviour": {
+    "pace": 17,
+    "together": 57,
+    "review": 47
+   },
+   "intention": {
+    "area": "Build",
+    "path": {
+     "key": "lead"
+    },
+    "openToMove": true,
+    "grow": {
+     "name": "Thinker"
+    }
+   },
+   "quality": 81,
+   "projects": [
+    {
+     "id": "flowkit",
+     "contributions": 64
+    },
+    {
+     "id": "camsense",
+     "contributions": 275
+    }
+   ]
+  },
+  {
+   "id": "p7",
+   "name": "Zara",
+   "scores": [
+    57,
+    65,
+    26,
+    41
+   ],
+   "behaviour": {
+    "pace": 49,
+    "together": 60,
+    "review": 33
+   },
+   "intention": {
+    "area": "Serve",
+    "path": {
+     "key": "specialise"
+    },
+    "openToMove": false,
+    "grow": {
+     "name": "Builder"
+    }
+   },
+   "quality": 95,
+   "projects": []
+  },
+  {
+   "id": "p8",
+   "name": "Nurul",
+   "scores": [
+    48,
+    50,
+    34,
+    44
+   ],
+   "behaviour": {
+    "pace": 36,
+    "together": 9,
+    "review": 24
+   },
+   "intention": {
+    "area": "Work",
+    "path": {
+     "key": "lead"
+    },
+    "openToMove": false,
+    "grow": {
+     "name": "Builder"
+    }
+   },
+   "quality": 67,
+   "projects": []
+  },
+  {
+   "id": "p9",
+   "name": "Lina",
+   "scores": [
+    41,
+    59,
+    65,
+    46
+   ],
+   "behaviour": {
+    "pace": 2,
+    "together": 61,
+    "review": 95
+   },
+   "intention": {
+    "area": "Build",
+    "path": {
+     "key": "specialise"
+    },
+    "openToMove": false,
+    "grow": {
+     "name": "Thinker"
+    }
+   },
+   "quality": 89,
+   "projects": [
+    {
+     "id": "docfinder",
+     "contributions": 38
+    },
+    {
+     "id": "docfinder-admin",
+     "contributions": 43
+    }
+   ]
+  },
+  {
+   "id": "p10",
+   "name": "Chong",
+   "scores": [
+    73,
+    93,
+    55,
+    67
+   ],
+   "behaviour": {
+    "pace": 67,
+    "together": 31,
+    "review": 70
+   },
+   "intention": {
+    "area": "Serve",
+    "path": {
+     "key": "lead"
+    },
+    "openToMove": true,
+    "grow": {
+     "name": "Builder"
+    }
+   },
+   "quality": 93,
+   "projects": [
+    {
+     "id": "kopicode",
+     "contributions": 10
+    },
+    {
+     "id": "levyline",
+     "contributions": 221
+    }
+   ]
+  },
+  {
+   "id": "p11",
+   "name": "Priya",
+   "scores": [
+    84,
+    56,
+    45,
+    53
+   ],
+   "behaviour": {
+    "pace": 45,
+    "together": 6,
+    "review": 29
+   },
+   "intention": {
+    "area": "Build",
+    "path": {
+     "key": "lead"
+    },
+    "openToMove": true,
+    "grow": {
+     "name": "Guardian"
+    }
+   },
+   "quality": 91,
+   "projects": [
+    {
+     "id": "camsense",
+     "contributions": 138
+    }
+   ]
+  },
+  {
+   "id": "p12",
+   "name": "Vani",
+   "scores": [
+    33,
+    53,
+    38,
+    79
+   ],
+   "behaviour": {
+    "pace": 10,
+    "together": 95,
+    "review": 47
+   },
+   "intention": {
+    "area": "Work",
+    "path": {
+     "key": "specialise"
+    },
+    "openToMove": false,
+    "grow": {
+     "name": "Thinker"
+    }
+   },
+   "quality": 70,
+   "projects": [
+    {
+     "id": "gatelib",
+     "contributions": 323
+    }
+   ]
+  },
+  {
+   "id": "p13",
+   "name": "Qistina",
+   "scores": [
+    55,
+    93,
+    53,
+    85
+   ],
+   "behaviour": {
+    "pace": 23,
+    "together": 99,
+    "review": 75
+   },
+   "intention": {
+    "area": "Work",
+    "path": {
+     "key": "lead"
+    },
+    "openToMove": true,
+    "grow": {
+     "name": "Connector"
+    }
+   },
+   "quality": 65,
+   "projects": []
+  },
+  {
+   "id": "p14",
+   "name": "Imran",
+   "scores": [
+    50,
+    58,
+    56,
+    69
+   ],
+   "behaviour": {
+    "pace": 38,
+    "together": 57,
+    "review": 5
+   },
+   "intention": {
+    "area": "Serve",
+    "path": {
+     "key": "specialise"
+    },
+    "openToMove": false,
+    "grow": {
+     "name": "Builder"
+    }
+   },
+   "quality": 96,
+   "projects": [
+    {
+     "id": "siteboard",
+     "contributions": 114
+    },
+    {
+     "id": "plancheck",
+     "contributions": 51
+    }
+   ]
+  },
+  {
+   "id": "p15",
+   "name": "Joon",
+   "scores": [
+    90,
+    46,
+    38,
+    57
+   ],
+   "behaviour": {
+    "pace": 54,
+    "together": 32,
+    "review": 21
+   },
+   "intention": {
+    "area": "Build",
+    "path": {
+     "key": "specialise"
+    },
+    "openToMove": true,
+    "grow": {
+     "name": "Guardian"
+    }
+   },
+   "quality": 64,
+   "projects": [
+    {
+     "id": "docfinder",
+     "contributions": 90
+    }
+   ]
+  },
+  {
+   "id": "p16",
+   "name": "Kavita",
+   "scores": [
+    73,
+    75,
+    64,
+    81
+   ],
+   "behaviour": {
+    "pace": 41,
+    "together": 83,
+    "review": 93
+   },
+   "intention": {
+    "area": "Work",
+    "path": {
+     "key": "lead"
+    },
+    "openToMove": true,
+    "grow": {
+     "name": "Builder"
+    }
+   },
+   "quality": 72,
+   "projects": [
+    {
+     "id": "drillsim",
+     "contributions": 82
+    }
+   ]
+  },
+  {
+   "id": "p17",
+   "name": "Omar",
+   "scores": [
+    56,
+    87,
+    83,
+    78
+   ],
+   "behaviour": {
+    "pace": 39,
+    "together": 53,
+    "review": 35
+   },
+   "intention": {
+    "area": "Build",
+    "path": {
+     "key": "specialise"
+    },
+    "openToMove": true,
+    "grow": {
+     "name": "Guardian"
+    }
+   },
+   "quality": 67,
+   "projects": [
+    {
+     "id": "flowkit",
+     "contributions": 232
+    },
+    {
+     "id": "formkit",
+     "contributions": 98
+    }
+   ]
+  },
+  {
+   "id": "p18",
+   "name": "Indra",
+   "scores": [
+    77,
+    30,
+    59,
+    28
+   ],
+   "behaviour": {
+    "pace": 45,
+    "together": 27,
+    "review": 88
+   },
+   "intention": {
+    "area": "Build",
+    "path": {
+     "key": "specialise"
+    },
+    "openToMove": true,
+    "grow": {
+     "name": "Connector"
+    }
+   },
+   "quality": 68,
+   "projects": [
+    {
+     "id": "mapask",
+     "contributions": 262
+    },
+    {
+     "id": "formkit",
+     "contributions": 98
+    }
+   ]
+  },
+  {
+   "id": "p19",
+   "name": "Hana",
+   "scores": [
+    79,
+    49,
+    47,
+    94
+   ],
+   "behaviour": {
+    "pace": 99,
+    "together": 80,
+    "review": 35
+   },
+   "intention": {
+    "area": "Work",
+    "path": {
+     "key": "lead"
+    },
+    "openToMove": true,
+    "grow": {
+     "name": "Thinker"
+    }
+   },
+   "quality": 88,
+   "projects": [
+    {
+     "id": "levyline",
+     "contributions": 139
+    }
+   ]
+  },
+  {
+   "id": "p20",
+   "name": "Kamal",
+   "scores": [
+    93,
+    52,
+    26,
+    36
+   ],
+   "behaviour": {
+    "pace": 28,
+    "together": 3,
+    "review": 15
+   },
+   "intention": {
+    "area": "Work",
+    "path": {
+     "key": "lead"
+    },
+    "openToMove": true,
+    "grow": {
+     "name": "Thinker"
+    }
+   },
+   "quality": 94,
+   "projects": [
+    {
+     "id": "siteboard",
+     "contributions": 316
+    },
+    {
+     "id": "portsubmit",
+     "contributions": 102
+    }
+   ]
+  },
+  {
+   "id": "p21",
+   "name": "Wei",
+   "scores": [
+    56,
+    63,
+    69,
+    52
+   ],
+   "behaviour": {
+    "pace": 11,
+    "together": 64,
+    "review": 95
+   },
+   "intention": {
+    "area": "Work",
+    "path": {
+     "key": "lead"
+    },
+    "openToMove": true,
+    "grow": {
+     "name": "Builder"
+    }
+   },
+   "quality": 84,
+   "projects": [
+    {
+     "id": "pulse",
+     "contributions": 117
+    },
+    {
+     "id": "formkit",
+     "contributions": 268
+    }
+   ]
+  },
+  {
+   "id": "p22",
+   "name": "Daniel",
+   "scores": [
+    48,
+    46,
+    59,
+    37
+   ],
+   "behaviour": {
+    "pace": 18,
+    "together": 40,
+    "review": 30
+   },
+   "intention": {
+    "area": "Serve",
+    "path": {
+     "key": "specialise"
+    },
+    "openToMove": true,
+    "grow": {
+     "name": "Thinker"
+    }
+   },
+   "quality": 85,
+   "projects": [
+    {
+     "id": "levyline",
+     "contributions": 100
+    },
+    {
+     "id": "keyring",
+     "contributions": 212
+    }
+   ]
+  },
+  {
+   "id": "p23",
+   "name": "Suri",
+   "scores": [
+    74,
+    71,
+    63,
+    92
+   ],
+   "behaviour": {
+    "pace": 80,
+    "together": 9,
+    "review": 12
+   },
+   "intention": {
+    "area": "Work",
+    "path": {
+     "key": "specialise"
+    },
+    "openToMove": true,
+    "grow": {
+     "name": "Connector"
+    }
+   },
+   "quality": 68,
+   "projects": []
+  },
+  {
+   "id": "p24",
+   "name": "Ehsan",
+   "scores": [
+    92,
+    44,
+    26,
+    71
+   ],
+   "behaviour": {
+    "pace": 38,
+    "together": 18,
+    "review": 29
+   },
+   "intention": {
+    "area": "Build",
+    "path": {
+     "key": "specialise"
+    },
+    "openToMove": true,
+    "grow": {
+     "name": "Guardian"
+    }
+   },
+   "quality": 66,
+   "projects": [
+    {
+     "id": "pulse",
+     "contributions": 540
+    }
+   ]
+  },
+  {
+   "id": "p25",
+   "name": "Bao",
+   "scores": [
+    27,
+    28,
+    74,
+    67
+   ],
+   "behaviour": {
+    "pace": 27,
+    "together": 57,
+    "review": 51
+   },
+   "intention": {
+    "area": "Serve",
+    "path": {
+     "key": "specialise"
+    },
+    "openToMove": true,
+    "grow": {
+     "name": "Builder"
+    }
+   },
+   "quality": 77,
+   "projects": [
+    {
+     "id": "relay",
+     "contributions": 104
+    }
+   ]
+  },
+  {
+   "id": "p26",
+   "name": "Elina",
+   "scores": [
+    55,
+    28,
+    86,
+    81
+   ],
+   "behaviour": {
+    "pace": 40,
+    "together": 22,
+    "review": 30
+   },
+   "intention": {
+    "area": "Work",
+    "path": {
+     "key": "lead"
+    },
+    "openToMove": false,
+    "grow": {
+     "name": "Builder"
+    }
+   },
+   "quality": 73,
+   "projects": []
+  },
+  {
+   "id": "p27",
+   "name": "Aiman",
+   "scores": [
+    64,
+    85,
+    40,
+    26
+   ],
+   "behaviour": {
+    "pace": 48,
+    "together": 75,
+    "review": 75
+   },
+   "intention": {
+    "area": "Serve",
+    "path": {
+     "key": "lead"
+    },
+    "openToMove": false,
+    "grow": {
+     "name": "Connector"
+    }
+   },
+   "quality": 89,
+   "projects": [
+    {
+     "id": "papertrail",
+     "contributions": 544
+    },
+    {
+     "id": "docfinder-admin",
+     "contributions": 103
+    }
+   ]
+  },
+  {
+   "id": "p28",
+   "name": "Arif",
+   "scores": [
+    72,
+    58,
+    45,
+    47
+   ],
+   "behaviour": {
+    "pace": 25,
+    "together": 50,
+    "review": 1
+   },
+   "intention": {
+    "area": "Build",
+    "path": {
+     "key": "specialise"
+    },
+    "openToMove": true,
+    "grow": {
+     "name": "Connector"
+    }
+   },
+   "quality": 85,
+   "projects": [
+    {
+     "id": "kopicode",
+     "contributions": 11
+    },
+    {
+     "id": "portsubmit",
+     "contributions": 111
+    }
+   ]
+  },
+  {
+   "id": "p29",
+   "name": "Umar",
+   "scores": [
+    86,
+    94,
+    91,
+    39
+   ],
+   "behaviour": {
+    "pace": 89,
+    "together": 91,
+    "review": 90
+   },
+   "intention": {
+    "area": "Build",
+    "path": {
+     "key": "lead"
+    },
+    "openToMove": false,
+    "grow": {
+     "name": "Builder"
+    }
+   },
+   "quality": 75,
+   "projects": [
+    {
+     "id": "flowkit",
+     "contributions": 127
+    },
+    {
+     "id": "gatelib",
+     "contributions": 143
+    }
+   ]
+  },
+  {
+   "id": "p30",
+   "name": "Devi",
+   "scores": [
+    55,
+    29,
+    53,
+    51
+   ],
+   "behaviour": {
+    "pace": 35,
+    "together": 76,
+    "review": 30
+   },
+   "intention": {
+    "area": "Build",
+    "path": {
+     "key": "specialise"
+    },
+    "openToMove": true,
+    "grow": {
+     "name": "Guardian"
+    }
+   },
+   "quality": 87,
+   "projects": [
+    {
+     "id": "pulse",
+     "contributions": 75
+    }
+   ]
+  },
+  {
+   "id": "p31",
+   "name": "Faiz",
+   "scores": [
+    46,
+    28,
+    39,
+    59
+   ],
+   "behaviour": {
+    "pace": 61,
+    "together": 69,
+    "review": 65
+   },
+   "intention": {
+    "area": "Work",
+    "path": {
+     "key": "specialise"
+    },
+    "openToMove": true,
+    "grow": {
+     "name": "Connector"
+    }
+   },
+   "quality": 90,
+   "projects": [
+    {
+     "id": "courier",
+     "contributions": 72
+    }
+   ]
+  },
+  {
+   "id": "p32",
+   "name": "Bella",
+   "scores": [
+    69,
+    37,
+    41,
+    49
+   ],
+   "behaviour": {
+    "pace": 94,
+    "together": 84,
+    "review": 61
+   },
+   "intention": {
+    "area": "Work",
+    "path": {
+     "key": "lead"
+    },
+    "openToMove": false,
+    "grow": {
+     "name": "Guardian"
+    }
+   },
+   "quality": 97,
+   "projects": [
+    {
+     "id": "mapask",
+     "contributions": 204
+    },
+    {
+     "id": "courier",
+     "contributions": 95
+    }
+   ]
+  },
+  {
+   "id": "p33",
+   "name": "Mei",
+   "scores": [
+    30,
+    65,
+    68,
+    38
+   ],
+   "behaviour": {
+    "pace": 48,
+    "together": 92,
+    "review": 47
+   },
+   "intention": {
+    "area": "Work",
+    "path": {
+     "key": "specialise"
+    },
+    "openToMove": false,
+    "grow": {
+     "name": "Builder"
+    }
+   },
+   "quality": 82,
+   "projects": [
+    {
+     "id": "kopicode",
+     "contributions": 9
+    }
+   ]
+  },
+  {
+   "id": "p34",
+   "name": "Jia",
+   "scores": [
+    90,
+    69,
+    87,
+    67
+   ],
+   "behaviour": {
+    "pace": 44,
+    "together": 55,
+    "review": 99
+   },
+   "intention": {
+    "area": "Serve",
+    "path": {
+     "key": "specialise"
+    },
+    "openToMove": true,
+    "grow": {
+     "name": "Connector"
+    }
+   },
+   "quality": 75,
+   "projects": [
+    {
+     "id": "submithub",
+     "contributions": 335
+    }
+   ]
+  },
+  {
+   "id": "p35",
+   "name": "Nadia",
+   "scores": [
+    72,
+    48,
+    71,
+    69
+   ],
+   "behaviour": {
+    "pace": 60,
+    "together": 61,
+    "review": 26
+   },
+   "intention": {
+    "area": "Serve",
+    "path": {
+     "key": "specialise"
+    },
+    "openToMove": true,
+    "grow": {
+     "name": "Guardian"
+    }
+   },
+   "quality": 84,
+   "projects": [
+    {
+     "id": "submithub",
+     "contributions": 114
+    },
+    {
+     "id": "relay",
+     "contributions": 92
+    }
+   ]
+  },
+  {
+   "id": "p36",
+   "name": "Yusof",
+   "scores": [
+    84,
+    50,
+    62,
+    59
+   ],
+   "behaviour": {
+    "pace": 13,
+    "together": 23,
+    "review": 84
+   },
+   "intention": {
+    "area": "Work",
+    "path": {
+     "key": "lead"
+    },
+    "openToMove": true,
+    "grow": {
+     "name": "Connector"
+    }
+   },
+   "quality": 81,
+   "projects": []
+  },
+  {
+   "id": "p37",
+   "name": "Musa",
+   "scores": [
+    26,
+    67,
+    51,
+    68
+   ],
+   "behaviour": {
+    "pace": 31,
+    "together": 16,
+    "review": 16
+   },
+   "intention": {
+    "area": "Build",
+    "path": {
+     "key": "lead"
+    },
+    "openToMove": true,
+    "grow": {
+     "name": "Thinker"
+    }
+   },
+   "quality": 74,
+   "projects": [
+    {
+     "id": "drillsim",
+     "contributions": 341
+    },
+    {
+     "id": "docfinder",
+     "contributions": 65
+    }
+   ]
+  },
+  {
+   "id": "p38",
+   "name": "Xin",
+   "scores": [
+    50,
+    86,
+    63,
+    81
+   ],
+   "behaviour": {
+    "pace": 90,
+    "together": 79,
+    "review": 71
+   },
+   "intention": {
+    "area": "Work",
+    "path": {
+     "key": "specialise"
+    },
+    "openToMove": true,
+    "grow": {
+     "name": "Guardian"
+    }
+   },
+   "quality": 77,
+   "projects": [
+    {
+     "id": "gatelib",
+     "contributions": 68
+    }
+   ]
+  },
+  {
+   "id": "p39",
+   "name": "Chitra",
+   "scores": [
+    81,
+    37,
+    30,
+    95
+   ],
+   "behaviour": {
+    "pace": 89,
+    "together": 2,
+    "review": 48
+   },
+   "intention": {
+    "area": "Build",
+    "path": {
+     "key": "lead"
+    },
+    "openToMove": true,
+    "grow": {
+     "name": "Connector"
+    }
+   },
+   "quality": 81,
+   "projects": [
+    {
+     "id": "submithub",
+     "contributions": 407
+    },
+    {
+     "id": "sensorhub",
+     "contributions": 221
+    }
+   ]
+  },
+  {
+   "id": "p40",
+   "name": "Grace",
+   "scores": [
+    75,
+    68,
+    31,
+    90
+   ],
+   "behaviour": {
+    "pace": 25,
+    "together": 48,
+    "review": 51
+   },
+   "intention": {
+    "area": "Serve",
+    "path": {
+     "key": "specialise"
+    },
+    "openToMove": false,
+    "grow": {
+     "name": "Thinker"
+    }
+   },
+   "quality": 64,
+   "projects": [
+    {
+     "id": "sensorhub",
+     "contributions": 354
+    }
+   ]
+  }
+ ]
+}

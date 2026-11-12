@@ -3,11 +3,14 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "node tools/roster.mjs",
     "dev": "vite dev",
+    "prebuild": "node tools/roster.mjs",
     "build": "vite build && tsc --noEmit",
     "start": "vite preview",
     "scan": "node tools/scan.mjs",
-    "analyze": "node tools/analyze.mjs"
+    "analyze": "node tools/analyze.mjs",
+    "roster": "node tools/roster.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",

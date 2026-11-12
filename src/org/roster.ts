@@ -1,12 +1,13 @@
-// The person module's roster (public/city/people.js, built separately), read
-// as the page reads it and turned into the values the metrics read. Nothing in
-// the roster is changed here. What the roster does not hold (skills, tags)
-// still comes from the stand-in.
-import fs from "node:fs";
-import path from "node:path";
-import vm from "node:vm";
-import { catalogue } from "~/data/catalogue";
+// The person module's roster (public/city/people.js, built separately), turned
+// into the values the metrics read. Nothing in the roster is changed here. What
+// the roster does not hold (skills, tags) still comes from the stand-in.
+//
+// The roster is read from roster.generated.json, which tools/roster.mjs writes
+// before every dev run and build by running the city's own scripts. It is not
+// read from disk here: where this is deployed the server has no files to read
+// and may not run a script from text, so that way it found nobody.
 import type { Evidence, PersonValues } from "./metrics";
+import generated from "./roster.generated.json";
 
 export type RosterPerson = {
   id: string;
@@ -19,52 +20,14 @@ export type RosterPerson = {
 };
 type Roster = { roster: RosterPerson[]; TRAITS: { key: string; name: string }[] };
 
-type Staffable = Roster & { staff?: (entries: unknown[]) => void };
-
 /**
  * The roster, staffed onto every project exactly as the city page staffs it
  * (as tools/analyze.mjs does too), so each person's `projects` are the ones
- * the city shows them on. Null when the person module's file is not there.
+ * the city shows them on. Null when none was written.
  */
 export function loadRoster(): Roster | null {
-  const dir = path.join(process.cwd(), "public", "city");
-  if (!fs.existsSync(path.join(dir, "people.js"))) return null;
-  const window: {
-    GTECH_PEOPLE?: Staffable;
-    GTECH_CATALOGUE?: typeof catalogue;
-    GTECH_DISTRICT_IDS?: string[];
-    GTECH_DISTRICTS?: { id: string; name: string }[];
-    GTECH_DUMMY?: (app: unknown) => unknown;
-  } = {};
-  const ctx = vm.createContext({ window, Date });
-  const run = (file: string) => {
-    const f = path.join(dir, file);
-    if (fs.existsSync(f)) vm.runInContext(fs.readFileSync(f, "utf8"), ctx, { filename: file });
-  };
-  run("districts/index.js");
-  for (const id of window.GTECH_DISTRICT_IDS ?? []) run(`districts/${id}.js`);
-  window.GTECH_CATALOGUE = catalogue;
-  run("dummy.js");
-  run("people.js");
-  const people = window.GTECH_PEOPLE;
-  if (!people) return null;
-  const districts = window.GTECH_DISTRICTS ?? [];
-  // The same list, in the same order, as the page staffs.
-  const entries = catalogue.apps
-    .map((a) => ({
-      id: a.id,
-      name: a.name,
-      app: a,
-      district: districts.find((d) => d.id === a.id) ?? window.GTECH_DUMMY?.(a),
-    }))
-    .filter((e) => e.district)
-    .concat(
-      districts
-        .filter((d) => !catalogue.apps.some((a) => a.id === d.id))
-        .map((d) => ({ id: d.id, name: d.name, app: null as never, district: d })),
-    );
-  people.staff?.(entries);
-  return people;
+  const data = generated as Roster;
+  return data.roster.length ? data : null;
 }
 
 /**
