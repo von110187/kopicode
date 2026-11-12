@@ -740,7 +740,7 @@ window.GTECH_PEOPLE = (function () {
         return (
           '<tr><td style="width:84px">' +
           t.name +
-          '</td><td><div style="height:8px;border-radius:4px;background:#eee7da"><div style="height:8px;border-radius:4px;width:' +
+          '</td><td><div style="height:8px;border-radius:4px;background:rgba(30,44,90,0.1)"><div style="height:8px;border-radius:4px;width:' +
           p.scores[i] +
           "%;background:hsl(" +
           t.hue +
@@ -756,7 +756,7 @@ window.GTECH_PEOPLE = (function () {
         return (
           '<tr><td style="width:84px">' +
           b.name +
-          '</td><td><div style="position:relative;height:8px;border-radius:4px;background:#eee7da"><div style="position:absolute;top:-2px;left:calc(' +
+          '</td><td><div style="position:relative;height:8px;border-radius:4px;background:rgba(30,44,90,0.1)"><div style="position:absolute;top:-2px;left:calc(' +
           v +
           '% - 6px);width:12px;height:12px;border-radius:6px;background:#2b3a30"></div></div></td><td class="n" style="width:84px">' +
           esc(v < 50 ? b.low : b.high) +
@@ -877,7 +877,7 @@ window.GTECH_PEOPLE = (function () {
     );
   }
   var AI_BOX =
-    'style="background:#f1ece1;border-radius:8px;padding:8px 10px;margin:8px 0"';
+    'style="background:rgba(61,90,254,0.08);border-radius:10px;padding:8px 10px;margin:8px 0"';
   function reading(p) {
     var a = analysis();
     return a && a.people[p.id]
@@ -898,7 +898,7 @@ window.GTECH_PEOPLE = (function () {
   }
 
   var BACK =
-    'style="border:0;background:none;padding:0;margin:0 0 8px;color:#5d6a62;font:inherit;font-size:12px;cursor:pointer;text-decoration:underline"';
+    'style="border:0;background:none;padding:0;margin:0 0 8px;color:#5c6584;font:inherit;font-size:12px;cursor:pointer;text-decoration:underline"';
   var NO_SCORE =
     '<p class="sub" style="margin-top:10px">Mock data, scored by rule: behaviour 40, intention 40 (30 where the seat has no business area), time 20, fit with the team up to 20, shown as a share of 100. Every person is invented, so the ranking shows how the match works and says nothing about anyone real. The quality figure is not used.</p>';
 
@@ -1249,7 +1249,7 @@ window.GTECH_PEOPLE = (function () {
             '<tr data-candidate="' +
             m.person.id +
             '" style="cursor:pointer' +
-            (here ? ";background:#e6eedf" : "") +
+            (here ? ";background:rgba(18,147,106,0.13)" : "") +
             '"><td>' +
             esc(m.person.name) +
             ' <span class="sub">' +

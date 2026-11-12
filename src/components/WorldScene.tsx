@@ -255,7 +255,7 @@ export function WorldScene({
     el.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    const sky = new THREE.Color(0xeaf1f4);
+    const sky = new THREE.Color(0xe6e9fb); // the middle of the sky every page shares
     scene.background = sky;
     const camera = new THREE.PerspectiveCamera(42, el.clientWidth / el.clientHeight, 0.5, 3000);
     const controls = new OrbitControls(camera, renderer.domElement);

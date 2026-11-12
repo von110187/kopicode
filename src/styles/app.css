@@ -1,11 +1,11 @@
 :root {
-  --ink: #23302a;
-  --muted: #5d6a62;
-  --paper: #fbf6ee;
+  --ink: #141a2e;
+  --muted: #5c6584;
+  --paper: #eef2fb;
   --card: #ffffff;
-  --line: #d9d2c4;
-  --accent: #2b3a30;
-  --chip: #e6eedf;
+  --line: rgba(30, 44, 90, 0.14);
+  --accent: #3d5afe;
+  --chip: rgba(61, 90, 254, 0.1);
   --warn: #f6e3c8;
 }
 * {
@@ -13,14 +13,9 @@
 }
 body {
   margin: 0;
-  background: var(--paper);
+  background: var(--sky) fixed;
   color: var(--ink);
-  font:
-    14px/1.5 ui-sans-serif,
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    sans-serif;
+  font: 14px/1.5 var(--type);
 }
 main {
   max-width: 1080px;
@@ -49,7 +44,7 @@ h2 {
   max-width: 64ch;
 }
 .cta {
-  color: #fdf3b0;
+  color: #fff;
   background: var(--accent);
   border-radius: 999px;
   padding: 8px 16px;
@@ -126,7 +121,7 @@ nav a.active {
   font-weight: 600;
 }
 nav a.cta {
-  color: #fdf3b0;
+  color: #fff;
   padding: 8px 16px;
 }
 .sub {
@@ -332,7 +327,7 @@ main.with-dock {
 .seg button[aria-pressed="true"] {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fdf3b0;
+  color: #fff;
 }
 .panel button:focus-visible,
 .app .actions button:focus-visible {
@@ -484,10 +479,12 @@ tr.warn td:first-child {
   top: 10px;
   font-size: 12px;
   color: var(--muted);
-  background: rgba(255, 255, 255, 0.88);
+  background: var(--glass);
   border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 5px 10px;
+  border-radius: 12px;
+  padding: 6px 12px;
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--lift);
   width: fit-content;
   max-width: calc(100% - 20px);
 }
@@ -620,17 +617,25 @@ h3 em.roster {
 }
 .hud-top > * {
   pointer-events: auto;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--glass);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 8px 12px;
-  backdrop-filter: blur(6px);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--lift);
+}
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 .brand {
   display: grid;
 }
 .brand a {
-  font-weight: 800;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   font-size: 18px;
   color: var(--ink);
   text-decoration: none;
@@ -673,7 +678,7 @@ h3 em.roster {
   font: inherit;
   font-size: 12px;
   background: var(--accent);
-  color: #fdf3b0;
+  color: #fff;
   border: 0;
   border-radius: 999px;
   padding: 4px 10px;
@@ -771,7 +776,7 @@ h3 em.roster {
 .drawer .seg button[aria-pressed="true"] {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fdf3b0;
+  color: #fff;
 }
 .dock-panel button small {
   opacity: 0.6;

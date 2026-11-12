@@ -1,0 +1,54 @@
+/* What every page shares, so the three views read as one app: a soft sky behind
+   the scene, panels of frosted glass, one typeface, one accent. The look
+   follows Commit City (commitcityapp.vercel.app), which the team took as its
+   reference. Each page's own sheet still sets the tokens it reads. */
+:root {
+  --sky: linear-gradient(180deg, #cfe0ff 0%, #f1e9ff 55%, #fff3e8 100%);
+  --glass: rgba(255, 255, 255, 0.74);
+  --glass-solid: rgba(255, 255, 255, 0.9);
+  --glass-blur: blur(18px);
+  --edge: rgba(30, 44, 90, 0.12);
+  --lift: 0 16px 40px -18px rgba(28, 40, 96, 0.35), 0 2px 6px -2px rgba(28, 40, 96, 0.08);
+  --soft: rgba(61, 90, 254, 0.1);
+  --ok-soft: rgba(18, 147, 106, 0.13);
+  --type: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* The view switch: the same control, in the same place, on every page. */
+.view-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted, #5c6584);
+}
+.view-switch span {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.view-switch select {
+  font: 600 13px var(--type);
+  color: var(--ink, #141a2e);
+  background: var(--glass-solid);
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+  padding: 6px 30px 6px 14px;
+  cursor: pointer;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    calc(100% - 16px) 55%,
+    calc(100% - 11px) 55%;
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+}
+.view-switch select:focus-visible {
+  outline: 2px solid #3d5afe;
+  outline-offset: 2px;
+}
