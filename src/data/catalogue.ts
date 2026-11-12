@@ -4,9 +4,30 @@
 // date, owner, user count and cost, and every business problem. No real
 // project is named. An entry whose id is a scanned district's is drawn with
 // that repository inside it.
-window.GTECH_CATALOGUE = (function () {
-  "use strict";
-  var problems = [
+export type Area = "Serve" | "Work" | "Build";
+export type Problem = { id: string; name: string; area: Area };
+export type App = {
+  id: string;
+  name: string;
+  type: "app" | "service";
+  status: string;
+  docs: string | null;
+  what: string;
+  kind: string;
+  problems: string[];
+  owner: string | null;
+  users: number | null;
+  costMonth: number;
+};
+export type Gap = {
+  rule: "no-project" | "overlap" | "no-owner" | "no-docs-date" | "stale-docs" | "costly" | "unlisted";
+  problem?: string;
+  apps: string[];
+  says: string;
+};
+
+export const catalogue = (function () {
+  var problems: Problem[] = [
     {
       id: "submission",
       name: "Submissions to authorities are slow and paper-bound",
@@ -98,7 +119,7 @@ window.GTECH_CATALOGUE = (function () {
       area: "Serve",
     },
   ];
-  var apps = [
+  var apps: App[] = [
     {
       id: "levyline",
       name: "LevyLine",
@@ -355,8 +376,11 @@ window.GTECH_CATALOGUE = (function () {
    * The gaps, by rule alone. `unlisted` names the scanned repositories the
    * catalogue does not list.
    */
-  function gaps(today, unlisted) {
-    var out = [];
+  function gaps(
+    today: Date,
+    unlisted?: { id: string; name: string }[],
+  ): Gap[] {
+    var out: Gap[] = [];
     problems.forEach(function (p) {
       var solving = apps.filter(function (a) {
         return a.problems.indexOf(p.id) >= 0;
@@ -403,7 +427,7 @@ window.GTECH_CATALOGUE = (function () {
           says: a.name + " has no documentation date",
         });
       var days = a.docs
-        ? Math.floor((today - new Date(a.docs + "T00:00:00")) / 86400000)
+        ? Math.floor((today.getTime() - new Date(a.docs + "T00:00:00").getTime()) / 86400000)
         : null;
       if (days != null && days > STALE_DAYS)
         out.push({

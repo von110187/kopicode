@@ -10,7 +10,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const OUT = path.join(HERE, "..", "site", "districts");
+const OUT = path.join(HERE, "..", "public", "city", "districts");
 
 const SOURCE = new Set(
   "ts tsx js jsx mjs cjs py go rs java kt swift vue svelte".split(" "),
