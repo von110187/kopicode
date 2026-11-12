@@ -686,6 +686,145 @@
     return p;
   });
 
+  // ---- The people, in the world: everyone at the project they work on, moving
+  // the way they work. Whoever is on no project keeps to a commons at the edge.
+  var commons = new THREE.Group();
+  commons.position.set(-((cols - 1) / 2 + 1.05) * SPACING, 0, -SPACING * 0.5);
+  commons.add(
+    at(
+      new THREE.Mesh(new THREE.CylinderGeometry(12, 12, 0.8, 40), mat(0xece6d4)),
+      0,
+      -0.42,
+      0,
+    ),
+  );
+  commons.add(at(label("On no project", 22), 0, 1.4, 13.5));
+  world.add(commons);
+
+  var walkers = [];
+  var rand = (function () {
+    var h = 20261112;
+    return function () {
+      h = (h * 16807) % 2147483647;
+      return h / 2147483647;
+    };
+  })();
+  /** A point on the ring of ground around a project, clear of its object. */
+  function ringAt(centre, far) {
+    var a = rand() * Math.PI * 2;
+    var r = centre === commons.position ? 2 + rand() * (far ? 9 : 6) : (far ? 11.2 : 9.2) + rand() * 1.4;
+    return { x: centre.x + Math.cos(a) * r, z: centre.z + Math.sin(a) * r };
+  }
+  if (window.GTECH_PEOPLE && window.GTECH_PEOPLE.figure) {
+    window.GTECH_PEOPLE.roster.forEach(function (person) {
+      var homes = person.projects
+        .map(function (o) {
+          return places.filter(function (p) {
+            return p.entry.id === o.id;
+          })[0];
+        })
+        .filter(Boolean)
+        .map(function (p) {
+          return p.spot.position;
+        });
+      var fig = window.GTECH_PEOPLE.figure(person);
+      fig.scale.multiplyScalar(1.35);
+      var at0 = ringAt(homes[0] || commons.position, false);
+      fig.position.set(at0.x, 0, at0.z);
+      world.add(fig);
+      walkers.push({
+        person: person,
+        fig: fig,
+        homes: homes,
+        hi: 0,
+        tx: at0.x,
+        tz: at0.z,
+        wait: rand() * 3,
+        burst: 0,
+        swap: 8 + rand() * 10,
+        visit: 12 + rand() * 14,
+        phase: rand() * 6,
+        called: null,
+        arrived: false,
+        speed: 0,
+      });
+    });
+    // Those who work with others keep to the first such person at their place.
+    walkers.forEach(function (w, i) {
+      if (w.person.behaviour.together < 55) return;
+      var lead = walkers.filter(function (o, k) {
+        return (
+          k < i &&
+          !o.lead &&
+          o.person.behaviour.together >= 55 &&
+          (o.homes[0] || commons.position) === (w.homes[0] || commons.position)
+        );
+      })[0];
+      if (lead) {
+        w.lead = lead;
+        w.off = { x: (rand() - 0.5) * 3.4, z: (rand() - 0.5) * 3.4 };
+      }
+    });
+  }
+
+  /** Moves everyone on by `dt` seconds: how a person walks is how they work. */
+  function walk(dt, t) {
+    walkers.forEach(function (w) {
+      var b = w.person.behaviour;
+      var v = 2.4; // a steady walk
+      if (w.called) {
+        v = w.arrived ? 0 : w.speed;
+      } else if (w.lead && !w.lead.called) {
+        w.tx = w.lead.fig.position.x + w.off.x;
+        w.tz = w.lead.fig.position.z + w.off.z;
+        v = 3;
+      } else {
+        // Someone on two projects walks between them; a frequent reviewer calls on another team.
+        if (w.homes.length > 1 && (w.swap -= dt) < 0) {
+          w.swap = 14 + rand() * 8;
+          w.hi = 1 - w.hi;
+          w.wait = 0;
+        }
+        if (b.review >= 80 && w.homes.length === 1 && (w.visit -= dt) < 0) {
+          w.visit = 22 + rand() * 12;
+          var other = places[Math.floor(rand() * places.length)].spot.position;
+          var o = ringAt(other, false);
+          w.tx = o.x;
+          w.tz = o.z;
+          w.wait = 12;
+        }
+        if ((w.wait -= dt) < 0) {
+          // Someone open to moving strays further from their own project.
+          var n = ringAt(w.homes[w.hi] || commons.position, w.person.intention.openToMove);
+          w.tx = n.x;
+          w.tz = n.z;
+          w.wait = b.pace >= 60 ? 1 + rand() * 2 : 4 + rand() * 5;
+        }
+        // In bursts: a dash, then a stop. Otherwise an even walk.
+        if (b.pace >= 60) {
+          w.burst -= dt;
+          if (w.burst < -1.1) w.burst = 0.5 + rand() * 0.6;
+          v = w.burst > 0 ? 9 : 0;
+        }
+      }
+      var dx = w.tx - w.fig.position.x;
+      var dz = w.tz - w.fig.position.z;
+      var d = Math.hypot(dx, dz);
+      var moving = d > 0.15 && v > 0;
+      if (moving) {
+        var s = Math.min(d, v * dt);
+        w.fig.position.x += (dx / d) * s;
+        w.fig.position.z += (dz / d) * s;
+        w.fig.rotation.y = Math.atan2(dx, dz);
+      } else if (w.called && !w.arrived && d <= 0.15) {
+        w.arrived = true;
+        w.fig.rotation.y = 0;
+        if (w.onArrive) w.onArrive();
+      }
+      w.fig.position.y = moving ? Math.abs(Math.sin(t * 9 + w.phase)) * 0.28 : 0;
+    });
+  }
+
   // Camera moves ease toward a goal, so entering a project reads as going somewhere.
   var goal = null;
   function look(centre, radius) {
@@ -1057,7 +1196,7 @@
     wiringBtn.hidden = !inside || !inside.wires.children.length;
     hint.textContent = inside
       ? "A building is one app or package, a floor one module, as tall as its file count. Drag to orbit, scroll to zoom, click a floor."
-      : "Every project is one object, its shape by what the project is. A dot above one is a seat it has open. Click one to go inside.";
+      : "Every project is one object, its shape by what the project is. People stand at the project they work on, and walk the way they work. Click a project to go inside, or a person.";
   }
 
   // The seats of the project the page is inside, and the one being looked at.
@@ -1216,7 +1355,7 @@
     showWorld();
     look(
       new THREE.Vector3(0, 4, 0),
-      Math.max(cols, rows) * SPACING * 0.75 + 14,
+      Math.max(cols, rows) * SPACING * 0.75 + 22,
     );
     chips();
   }
@@ -1306,6 +1445,22 @@
       }
       var hit = ray.intersectObjects(inside.floors)[0];
       return select(hit ? hit.object : null);
+    }
+    // In the world a person is clicked first: they stand in front of the projects.
+    var hitWho = ray.intersectObjects(
+      walkers.map(function (w) {
+        return w.fig;
+      }),
+      true,
+    )[0];
+    if (hitWho) {
+      var f = hitWho.object;
+      while (f && !f.userData.person) f = f.parent;
+      ctx = { d: null, back: showWorld };
+      card.hidden = false;
+      card.innerHTML = People.personCard(f.userData.person.id, "World");
+      card.scrollTop = 0;
+      return;
     }
     // In the world a click anywhere on a project's object, or its plot, enters it.
     var best = null;
@@ -1399,6 +1554,7 @@
 
   var still = matchMedia("(prefers-reduced-motion: reduce)").matches;
   var clock = new THREE.Clock();
+  var lastT = 0;
   function frame() {
     requestAnimationFrame(frame);
     var t = clock.getElapsedTime();
@@ -1418,6 +1574,7 @@
       });
       inside.wires.visible = wired;
     } else if (!still) {
+      walk(Math.min(0.05, t - lastT), t);
       places.forEach(function (p) {
         if (p.icon.userData.tick) p.icon.userData.tick(t);
         if (p.dressed && p.dressed.tick) p.dressed.tick(t);
@@ -1428,6 +1585,7 @@
       controls.target.lerp(goal.target, still ? 1 : 0.08);
       if (camera.position.distanceTo(goal.position) < 0.3) goal = null;
     }
+    lastT = t;
     controls.update();
     renderer.render(scene, camera);
   }

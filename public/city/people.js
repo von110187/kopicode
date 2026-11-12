@@ -1247,6 +1247,7 @@ window.GTECH_PEOPLE = (function () {
     staffingCard: staffingCard,
     personCard: personCard,
     ghost: ghost,
+    figure: figure,
     person: function (id) {
       return roster.filter(function (x) {
         return x.id === id;
