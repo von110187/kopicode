@@ -923,11 +923,58 @@
     selected = null;
     paint();
     card.hidden = false;
-    card.innerHTML = People.shortlistCard(seat, ctx.d, {
-      filters: filters,
-      sort: sort,
-    });
+    card.innerHTML = People.shortlistCard(
+      seat,
+      ctx.d,
+      { filters: filters, sort: sort },
+      ctx.from,
+    );
     card.scrollTop = 0;
+  }
+
+  /** Every open seat and every person, on one card. */
+  function showStaffing() {
+    selected = null;
+    paint();
+    seat = null;
+    ctx = { d: null, back: showStaffing };
+    card.hidden = false;
+    card.innerHTML = People.staffingCard(
+      entries
+        .filter(function (e) {
+          return !e.problem;
+        })
+        .map(function (e) {
+          return {
+            id: e.id,
+            name: e.name,
+            seats: People.seats(
+              e.district || People.projectOf(e.id),
+              e.app,
+              cat.problems,
+              new Date(),
+            ),
+          };
+        }),
+    );
+    card.scrollTop = 0;
+  }
+  if (People)
+    document.getElementById("staffing").addEventListener("click", showStaffing);
+  else document.getElementById("staffing").hidden = true;
+
+  /** Opens one seat of one project from the staffing card, which is where back leads. */
+  function openSeat(key) {
+    var id = key.slice(0, key.lastIndexOf("/"));
+    var trait = key.slice(key.lastIndexOf("/") + 1);
+    var entry = entries.filter(function (e) {
+      return e.id === id;
+    })[0];
+    if (!entry) return;
+    seatsOf(entry, showStaffing);
+    ctx.from = "Staffing";
+    for (var i = 0; i < seats.length; i++)
+      if (seats[i].trait.key === trait) return showShortlist(i);
   }
 
   function showCandidate(id) {
@@ -988,6 +1035,12 @@
     if (e.target.closest("label")) return; // its checkbox's own click follows
     var row = e.target.closest("tr");
     if (!row) return;
+    if (row.dataset.open) return openSeat(row.dataset.open);
+    if (row.dataset.who) {
+      card.innerHTML = People.personCard(row.dataset.who, "Staffing");
+      card.scrollTop = 0;
+      return;
+    }
     if (row.dataset.seat) return showShortlist(Number(row.dataset.seat));
     if (row.dataset.candidate) return showCandidate(row.dataset.candidate);
     if (row.dataset.enter) return enter(byId(row.dataset.enter));
@@ -1122,6 +1175,7 @@
       }),
     );
   }
+  if (q.has("staffing") && People) showStaffing();
   if (inside && q.has("seat") && seats[Number(q.get("seat"))]) {
     showShortlist(Number(q.get("seat")));
     if (q.get("candidate")) showCandidate(q.get("candidate"));

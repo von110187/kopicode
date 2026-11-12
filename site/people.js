@@ -1084,6 +1084,133 @@ window.GTECH_PEOPLE = (function () {
     );
   }
 
+  /**
+   * The whole company's staffing in one card: every open seat with who the
+   * rule and the model would put in it, then every person with what they are
+   * on and the time they have left. `list` is [{ id, name, seats }].
+   */
+  function staffingCard(list) {
+    var a = analysis();
+    var open = [];
+    list.forEach(function (e) {
+      e.seats.forEach(function (s) {
+        open.push({ e: e, s: s });
+      });
+    });
+    var free = roster.filter(function (p) {
+      return !p.projects.length;
+    }).length;
+    var people = roster.slice().sort(function (x, y) {
+      return capacity(y) - capacity(x) || (x.name < y.name ? -1 : 1);
+    });
+    return (
+      '<h2>Staffing</h2><p class="sub">every project, every person · all of it mock</p>' +
+      '<div class="facts"><div><b>' +
+      open.length +
+      "</b><span>open seats</span></div><div><b>" +
+      list.filter(function (e) {
+        return e.seats.length;
+      }).length +
+      "</b><span>projects short</span></div><div><b>" +
+      free +
+      "</b><span>people on no project</span></div></div>" +
+      '<table><tr><th>Open seat</th><th>Rule</th><th>AI</th></tr>' +
+      open
+        .map(function (o) {
+          var d = projectOf(o.e.id);
+          var top = match(o.s, d)[0];
+          var ai = a && a.seats[o.e.id + "/" + o.s.trait.key];
+          return (
+            '<tr data-open="' +
+            esc(o.e.id) +
+            "/" +
+            o.s.trait.key +
+            '" style="cursor:pointer"><td>' +
+            esc(o.e.name) +
+            '<br><span style="font-size:12px;color:hsl(' +
+            o.s.trait.hue +
+            ',55%,40%)">' +
+            esc(o.s.trait.name) +
+            "</span></td><td>" +
+            (top ? esc(top.person.name) + ' <span class="sub">' + top.score + "</span>" : "nobody") +
+            "</td><td>" +
+            (ai ? esc(nameOf(ai.pick)) : '<span class="sub">none</span>') +
+            "</td></tr>"
+          );
+        })
+        .join("") +
+      '</table><p class="sub" style="margin:8px 0 14px">Rule is the highest score; AI is the model\'s own pick, which can differ. Click a seat for its shortlist.</p>' +
+      '<table><tr><th>Person</th><th>On</th><th class="n">Spare</th></tr>' +
+      people
+        .map(function (p) {
+          return (
+            '<tr data-who="' +
+            p.id +
+            '" style="cursor:pointer"><td>' +
+            esc(p.name) +
+            '<br><span style="font-size:12px;color:hsl(' +
+            p.first.hue +
+            ',55%,40%)">' +
+            esc(p.first.name) +
+            '</span></td><td><span class="sub">' +
+            (p.projects.length
+              ? p.projects
+                  .map(function (o) {
+                    return esc(o.name);
+                  })
+                  .join(", ")
+              : "no project") +
+            '</span></td><td class="n">' +
+            capacity(p) +
+            "%</td></tr>"
+          );
+        })
+        .join("") +
+      '</table><p class="sub" style="margin-top:10px">Mock data. Every person, team and catalogue project here is invented.</p>'
+    );
+  }
+
+  /** One person of the roster, away from any project or seat. */
+  function personCard(id, backTo) {
+    var p = roster.filter(function (x) {
+      return x.id === id;
+    })[0];
+    if (!p) return "";
+    return (
+      "<button data-back=\"project\" " +
+      BACK +
+      ">← " +
+      esc(backTo) +
+      "</button><h2>" +
+      esc(p.name) +
+      '</h2><p class="sub">' +
+      esc(p.first.role) +
+      " · invented person</p><p>" +
+      esc(p.first.name) +
+      " first, " +
+      esc(p.second.name.toLowerCase()) +
+      " second: " +
+      esc(p.first.says) +
+      ".</p>" +
+      reading(p) +
+      profile(p, p.projects) +
+      (p.projects.length ? "" : '<p class="sub">On no project now.</p>') +
+      '<p class="sub" style="margin-top:10px">Mock data. This person is invented from a seed; nothing is read from git, HR or an interview.</p>'
+    );
+  }
+
+  /** A person as they would stand in a seat they do not hold yet: see-through. */
+  function ghost(p) {
+    var g = figure(p);
+    g.traverse(function (o) {
+      if (!o.material) return;
+      o.material = o.material.clone();
+      o.material.transparent = true;
+      o.material.opacity = 0.45;
+    });
+    return g;
+  }
+
   return {
     stand: stand,
     card: card,
@@ -1093,6 +1220,9 @@ window.GTECH_PEOPLE = (function () {
     teamOf: teamOf,
     staff: staff,
     projectOf: projectOf,
+    staffingCard: staffingCard,
+    personCard: personCard,
+    ghost: ghost,
     teamCard: teamCard,
     seats: seats,
     seatsCard: seatsCard,
