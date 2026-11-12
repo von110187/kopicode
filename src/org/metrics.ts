@@ -237,6 +237,27 @@ export function computeOrg(org: Org, valuesOf: ValuesOf) {
     };
   });
 
+  // A roll-up over any set of people: the squads it touches are the ones they sit in.
+  const over = (id: string, name: string, members: Membership[]) => {
+    const inSquads = new Set(members.map((m) => m.squad));
+    return rollUp(id, name, members, squads.filter((s) => inSquads.has(s.id)), valuesOf, load);
+  };
+  const tribeName = new Map(org.tribes.map((t) => [t.id, t.name]));
+  const deptName = new Map(org.departments.map((d) => [d.id, d.name]));
+  const chapters = org.chapters.map((c) => ({
+    ...over(
+      c.id,
+      `${deptName.get(c.department)} · ${tribeName.get(c.tribe)}`,
+      org.memberships.filter((m) => m.chapter === c.id),
+    ),
+    department: c.department,
+    tribe: c.tribe,
+  }));
+  const guilds = org.guilds.map((g) => {
+    const people = new Set(org.guildMembers[g.id] ?? []);
+    return over(g.id, g.name, org.memberships.filter((m) => people.has(m.person)));
+  });
+
   const people = new Set(org.memberships.map((m) => m.person));
   return {
     totals: {
@@ -255,8 +276,55 @@ export function computeOrg(org: Org, valuesOf: ValuesOf) {
     departments,
     tribes,
     squads,
-    guilds: org.guilds.map((g) => ({ ...g, members: org.guildMembers[g.id]?.length ?? 0 })),
+    chapters,
+    guilds,
   };
+}
+
+export type MemberRow = {
+  person: string;
+  department: DepartmentId;
+  tribes: string[];
+  squads: string[];
+  chapter: string;
+  guilds: string[];
+  load: number;
+  // What the metrics read from the person module; null where it has no values.
+  skills: string[] | null;
+  comms: string | null;
+  proven: number | null; // share of the person's scores that carry proof
+  provenScore: number | null; // mean of their proven scores
+};
+
+// Everyone in the org, one row a person, with where they sit and what the metrics read of them.
+export function memberRows(org: Org, valuesOf: ValuesOf): MemberRow[] {
+  const chapter = new Map(org.chapters.map((c) => [c.id, c]));
+  const squad = new Map(org.squads.map((s) => [s.id, s]));
+  const guildsOf = new Map<string, string[]>();
+  for (const [g, people] of Object.entries(org.guildMembers))
+    for (const p of people) guildsOf.set(p, [...(guildsOf.get(p) ?? []), g]);
+  const byPerson = new Map<string, Membership[]>();
+  for (const m of org.memberships)
+    byPerson.set(m.person, [...(byPerson.get(m.person) ?? []), m]);
+  return [...byPerson].map(([person, ms]) => {
+    const v = valuesOf(person);
+    const proven = v?.scores.filter((s) => s.evidence.length) ?? [];
+    return {
+      person,
+      department: chapter.get(ms[0].chapter)!.department,
+      tribes: [...new Set(ms.map((m) => squad.get(m.squad)!.tribe))],
+      squads: ms.map((m) => m.squad),
+      chapter: ms[0].chapter,
+      guilds: guildsOf.get(person) ?? [],
+      load: Math.round(ms.reduce((s, m) => s + m.share, 0) * 100) / 100,
+      skills: v ? [...new Set(v.skills)] : null,
+      comms: v?.comms ?? null,
+      proven: v && v.scores.length ? proven.length / v.scores.length : null,
+      provenScore: proven.length
+        ? proven.reduce((s, x) => s + x.value, 0) / proven.length
+        : null,
+    };
+  });
 }
 
 export type OrgMetrics = ReturnType<typeof computeOrg>;

@@ -75,7 +75,7 @@ npm start            # serve the build
 ```
 
 - `/` is the catalogue and its gaps, rendered on the server (`src/routes/index.tsx`, data from `src/server/catalogue.ts`).
-- `/org` is the organisation: about 1000 people in a simplified Spotify model (departments, tribes, squads, chapters, guilds), with group metrics: skill coverage and what is lacking, bottlenecks, communication preferences, proof behind scores, and impact against project and department intentions (`src/org/`).
+- `/org` is the organisation: about 1000 people in a simplified Spotify model (departments, tribes, squads, chapters, guilds), with group metrics: skill coverage and what is lacking, bottlenecks, communication preferences, proof behind scores, and impact against project and department intentions (`src/org/`). A floating dock (Aceternity UI) picks the grouping; the groups to compare are picked under it, and each can be opened as its metrics or its members. The choice lives in the URL, so a view can be shared.
 - `/city` is the 3D city (`src/routes/city.tsx`), which loads the three.js viewer in `public/city/`.
 
 The catalogue lives in `src/data/catalogue.ts` and feeds both pages.

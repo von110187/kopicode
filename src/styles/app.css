@@ -292,3 +292,106 @@ small.req {
   color: var(--ink);
   margin-top: 2px;
 }
+main.with-dock {
+  padding-bottom: 120px;
+}
+.panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin: 16px 0;
+}
+.panel h2 {
+  margin: 0 0 2px;
+}
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.panel-head .sub {
+  margin: 0;
+}
+.panel button,
+.app .actions button,
+.seg button,
+.more {
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+.panel button[aria-pressed="true"],
+.seg button[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fdf3b0;
+}
+.panel button:focus-visible,
+.app .actions button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.seg {
+  display: inline-flex;
+  gap: 4px;
+}
+.picker-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 10px 0 8px;
+}
+.picker-bar .sub {
+  margin: 0;
+}
+.picker-bar input[type="search"] {
+  font: inherit;
+  font-size: 13px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 5px 10px;
+  min-width: min(260px, 100%);
+  background: #fff;
+}
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 180px;
+  overflow: auto;
+}
+.options small {
+  opacity: 0.7;
+  margin-left: 2px;
+}
+.panel button.link,
+button.link {
+  border: 0;
+  background: none;
+  padding: 0;
+  text-decoration: underline;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--ink);
+}
+.actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.more {
+  margin-top: 10px;
+}
+.panel.scroll {
+  padding: 4px 14px 10px;
+}
