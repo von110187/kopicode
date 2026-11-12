@@ -871,7 +871,9 @@
         );
       },
     );
-    explodeBtn.hidden = wiringBtn.hidden = !inside;
+    explodeBtn.hidden = !inside;
+    // With no dependency between its buildings a project has no wiring to show.
+    wiringBtn.hidden = !inside || !inside.wires.children.length;
     hint.textContent = inside
       ? "A building is one app or package, a floor one module, as tall as its file count. Drag to orbit, scroll to zoom, click a floor."
       : "Every project is one object, its shape by what the project is. Click one to go inside.";
