@@ -1124,6 +1124,11 @@
 
   // The order the card lists gaps in: what the business lacks or pays twice for first, upkeep last.
   var GAP_ORDER = ["no-project", "overlap", "costly", "no-owner", "unlisted", "stale-docs", "no-docs-date"];
+  // A rule the list does not know comes last, never first.
+  function gapRank(rule) {
+    var i = GAP_ORDER.indexOf(rule);
+    return i < 0 ? GAP_ORDER.length : i;
+  }
 
   function showBusiness() {
     var live = cat.apps;
@@ -1134,6 +1139,7 @@
     var cost = live.reduce(function (n, a) {
       return n + a.costMonth;
     }, 0);
+    var short = shortOf();
     card.hidden = false;
     card.innerHTML =
       "<h2>GTech at a glance</h2>" +
@@ -1151,7 +1157,7 @@
       gapList
         .slice()
         .sort(function (a, b) {
-          return GAP_ORDER.indexOf(a.rule) - GAP_ORDER.indexOf(b.rule);
+          return gapRank(a.rule) - gapRank(b.rule);
         })
         .map(function (g) {
           var id = g.apps[0] || "gap-" + g.problem;
@@ -1166,9 +1172,7 @@
         })
         .join("") +
       "</table>" +
-      '<div style="margin-top:12px">' +
-      shortOf() +
-      "</div>" +
+      (short ? '<div style="margin-top:12px">' + short + "</div>" : "") +
       '<table style="margin-top:12px"><tr><th>Project</th><th>Status</th><th class="n">Users</th><th class="n">RM / month</th></tr>' +
       live
         .map(function (a) {
