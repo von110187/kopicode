@@ -1523,8 +1523,7 @@
 
   /** The middle of the world as the camera should hold it: clear of the card on a wide screen. */
   function worldCentre() {
-    // Held forward of the middle, so the front row (the problems no project works on) stands clear of the key.
-    return innerWidth > 900 ? new THREE.Vector3(13, 4, 20) : new THREE.Vector3(0, 4, 0);
+    return innerWidth > 900 ? new THREE.Vector3(13, 4, -8.5) : new THREE.Vector3(0, 4, 0);
   }
 
   function leave() {
