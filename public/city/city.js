@@ -250,6 +250,131 @@
     },
   };
 
+  // ---- What a project's object says about its state, beside what it is.
+  var QUIET = 90; // days with no commit, after which the object goes dark and overgrown
+  var THIN = 10; // % of source files that are tests, under which it is taped off
+  var YOUNG = 150; // commits, under which the scaffolding is still up
+
+  /** The facts an object is dressed by: read from a scan, invented for a dummy inside. */
+  function stateOf(entry, d) {
+    var quiet =
+      d && d.git.lastCommit
+        ? Math.floor((Date.now() - new Date(d.git.lastCommit + "T00:00:00")) / 86400000)
+        : null;
+    var share =
+      d && d.totals.files ? Math.round((d.totals.tests / d.totals.files) * 100) : null;
+    var precode = !!(entry.app && entry.app.status === "Pre-code");
+    return {
+      precode: precode,
+      young: !precode && !!d && d.git.commits != null && d.git.commits < YOUNG,
+      quiet: quiet,
+      stale: quiet != null && quiet > QUIET,
+      share: share,
+      thin: share != null && share < THIN,
+      unowned: !!(entry.app && !entry.app.owner),
+    };
+  }
+
+  /** A project with no code yet: a fenced plot, a foundation and the plan on a board. */
+  function plotOf() {
+    var g = new THREE.Group();
+    g.add(at(box(9, 0.5, 9, 0xcfc6b0), 0, 0.25, 0));
+    [-5.5, 5.5].forEach(function (x) {
+      [-5.5, 5.5].forEach(function (z) {
+        g.add(at(box(0.35, 2.4, 0.35, 0x8a7a5c), x, 1.2, z));
+      });
+      g.add(at(box(0.2, 0.2, 11, 0x8a7a5c), x, 1.9, 0));
+      g.add(at(box(11, 0.2, 0.2, 0x8a7a5c), 0, 1.9, x));
+    });
+    g.add(at(box(0.3, 4, 0.3, 0x8a7a5c), -3.4, 2, 6.4));
+    g.add(at(box(0.3, 4, 0.3, 0x8a7a5c), -0.6, 2, 6.4));
+    g.add(at(box(4.2, 2.6, 0.2, 0xeaf2fb), -2, 3.6, 6.4));
+    g.add(at(box(2.6, 0.18, 0.24, 0x3b6ea5), -2, 3.9, 6.45));
+    g.add(at(box(1.6, 0.18, 0.24, 0x3b6ea5), -2.5, 3.2, 6.45));
+    return g;
+  }
+
+  /**
+   * Dresses a project's spot by its state: dark and overgrown where no commit
+   * has landed in months, taped off where it has almost no tests, a board out
+   * front where nobody owns it, scaffolding and a crane while it is young.
+   * Returns what the frame loop moves and how to bring the lights back on.
+   */
+  function dress(spot, icon, st) {
+    var out = { tick: null, relight: function () {} };
+    if (st.stale) {
+      var live = icon.userData.tick;
+      var paints = [];
+      icon.traverse(function (o) {
+        if (!o.material || !o.material.color || o.isSprite) return;
+        o.material = o.material.clone();
+        paints.push({ m: o.material, c: o.material.color.clone() });
+        o.material.color.lerp(new THREE.Color(0x8f9690), 0.78);
+        if (o.material.emissive) o.material.emissive.setHex(0x000000);
+      });
+      icon.userData.tick = null; // nothing moves on a project nobody is working on
+      var weeds = new THREE.Group();
+      for (var i = 0; i < 16; i++) {
+        var a = (i / 16) * Math.PI * 2 + (i % 3) * 0.2;
+        var w = new THREE.Mesh(
+          new THREE.ConeGeometry(0.45, 1.4 + (i % 4) * 0.5, 5),
+          mat(i % 2 ? 0x4f8f3a : 0x6aa84f),
+        );
+        weeds.add(at(w, Math.cos(a) * (6.6 + (i % 3)), 0.6, Math.sin(a) * (6.6 + (i % 3))));
+      }
+      spot.add(weeds);
+      out.relight = function () {
+        paints.forEach(function (x) {
+          x.m.color.copy(x.c);
+        });
+        icon.userData.tick = live;
+        weeds.visible = false;
+      };
+    }
+    if (st.thin) {
+      for (var k = 0; k < 30; k++) {
+        var b = (k / 30) * Math.PI * 2;
+        var seg = box(1.75, 0.55, 0.14, k % 2 ? 0x23302a : 0xf2c230);
+        seg.rotation.y = -b + Math.PI / 2;
+        spot.add(at(seg, Math.cos(b) * 8.4, 1.3, Math.sin(b) * 8.4));
+      }
+      for (var q4 = 0; q4 < 6; q4++) {
+        var c = (q4 / 6) * Math.PI * 2;
+        spot.add(at(box(0.25, 1.6, 0.25, 0x5d6a62), Math.cos(c) * 8.4, 0.8, Math.sin(c) * 8.4));
+      }
+    }
+    if (st.unowned) {
+      spot.add(at(box(0.3, 5, 0.3, 0x7a6a52), 8.2, 2.5, 7));
+      spot.add(at(label("TO LET", 15, "#b3261e"), 8.2, 5.6, 7));
+    }
+    if (st.young) {
+      var bar = 0xb58a3a;
+      [-6.2, 6.2].forEach(function (x) {
+        [-6.2, 0, 6.2].forEach(function (z) {
+          spot.add(at(box(0.18, 9, 0.18, bar), x, 4.5, z));
+          spot.add(at(box(0.18, 9, 0.18, bar), z, 4.5, x));
+        });
+      });
+      [2.5, 5.5, 8.5].forEach(function (y) {
+        [-6.2, 6.2].forEach(function (x) {
+          spot.add(at(box(0.14, 0.14, 12.4, bar), x, y, 0));
+          spot.add(at(box(12.4, 0.14, 0.14, bar), 0, y, x));
+        });
+      });
+      spot.add(at(box(0.45, 15, 0.45, 0xc98a1e), -8, 7.5, -7));
+      spot.add(at(box(9, 0.4, 0.4, 0xc98a1e), -3.8, 14.8, -7));
+      var hook = new THREE.Group();
+      hook.add(at(box(0.1, 4, 0.1, 0x5d6a62), 0, -2, 0));
+      hook.add(at(box(0.9, 0.7, 0.9, 0xc98a1e), 0, -4.2, 0));
+      hook.position.set(-0.5, 14.6, -7);
+      spot.add(hook);
+      out.tick = function (t) {
+        hook.rotation.z = Math.sin(t * 1.2) * 0.18;
+      };
+    }
+    return out;
+  }
+
   // ---- A district: its buildings, floors, wiring and services, about its own origin.
   function buildDistrict(d) {
     var g = new THREE.Group();
@@ -493,9 +618,11 @@
       ring.rotation.x = Math.PI / 2;
       icon.add(at(ring, 0, 0.4, 0));
     } else {
-      icon = (KIT[entry.kind] || KIT.city)(hue);
+      p.state = stateOf(entry, d);
+      icon = p.state.precode ? plotOf() : (KIT[entry.kind] || KIT.city)(hue);
       // A larger project is a somewhat larger object: a decade of files is a quarter more.
-      icon.scale.setScalar(d ? 0.75 + Math.log10(d.totals.files + 10) / 4 : 1);
+      if (!p.state.precode)
+        icon.scale.setScalar(d ? 0.75 + Math.log10(d.totals.files + 10) / 4 : 1);
     }
     var flagged = gapsOf(entry.id).length;
     if (flagged) {
@@ -551,6 +678,7 @@
       ),
     );
     spot.add(icon);
+    if (p.state) p.dressed = dress(spot, icon, p.state);
     spot.add(at(label(entry.name, 26), 0, 1.4, 12.5));
     world.add(spot);
     p.spot = spot;
@@ -1292,6 +1420,7 @@
     } else if (!still) {
       places.forEach(function (p) {
         if (p.icon.userData.tick) p.icon.userData.tick(t);
+        if (p.dressed && p.dressed.tick) p.dressed.tick(t);
       });
     }
     if (goal) {
