@@ -27,22 +27,24 @@ Agents that work between projects (business development first, then DevOps) are 
 
 ## Who should join a project
 
-Each person has a **behaviour** (how they work: their pace, whether they work alone or with others, how often they review) and an **intention** (what they want: the trait they want to grow, to lead or to go deeper in a craft, the business area they are drawn to, whether they are open to moving). A project that is short of someone shows an open seat, and a seat lists who could take it.
+Each person has a **behaviour** (how they work: their pace, whether they work alone or with others, how often they review) and an **intention** (what they want: the trait they want to grow, to lead or to go deeper in a craft, the business area they are drawn to, whether they are open to moving). Every project has a team drawn from one company roster of 40, so a person can be on two projects, on one or on none, and has less time to spare the more they are on. A project that is short of someone shows an open seat, and a seat lists who could take it, scored against the seat and against the people already on the team.
 
 ![A seat's shortlist, with the model's pick above the rule's ranking](docs/seat.png)
 
 It works in three layers, each shown on the page with its reasons:
 
 1. **Open seats, by rule.** A project opens a seat when under 10% of its source files are tests (Guardian), when it has had no commit in 90 days (Builder), when it has no owner or is not in the catalogue (Connector), or when nobody on its team has a trait. At most two seats a project.
-2. **A shortlist, by rule.** Everyone not on the team is scored out of 100: behaviour 40 (strength in the seat's trait, and the habit that suits the seat), intention 40 (wants to grow that trait, drawn to the seat's business area, open to moving, lead or specialise), time 20. A candidate's card shows every part of the score. The invented quality figure plays no part.
-3. **A model's reading.** `tools/analyze.mjs` sends the mock people and each seat's top five to Claude and writes `site/analysis.js`: a short reading of each person, a line on each candidate, the model's own pick and the main risk in it. The page shows this beside the rule's ranking and never in place of it. The model can see what the rule cannot, for example that a team already has two people who want to lead.
+2. **A shortlist, by rule.** Everyone not on the team is scored, and the score shown as a share of 100: behaviour 40 (strength in the seat's trait, and the habit that suits the seat), intention 40 (wants to grow that trait, drawn to the seat's business area, open to moving, lead or specialise), time 20 (the share of a week they have left), fit with the team 20 (the seat's habit counts for more where the team lacks it, a way of working counts for more the closer it is to the team's, and one more person who wants to lead is a clash). A candidate's card shows every part of the score. The invented quality figure plays no part.
+3. **A model's reading.** `tools/analyze.mjs` sends the mock people and each seat's top five to Claude and writes `site/analysis.js`: a short reading of each person, a line on each candidate, the model's own pick and the main risk in it. The page shows this beside the rule's ranking and never in place of it. The model can see what the rule cannot, for example that the best-fitting person is already on two projects and would have to be released from one.
 
 ![One candidate against one seat: the score's parts, then what the model said](docs/candidate.png)
 
 What to know before trusting any of it:
 
 - **Every person is invented.** The ranking shows how the match works and says nothing about anyone real. With real people this becomes profiling for staffing decisions, which needs consent, a way to contest a result and HR's agreement before any data goes in.
-- **The weights and the habits are guesses.** That a Builder seat suits working in bursts, or that intention is worth as much as behaviour, is a choice made for the demo with no data behind it.
+- **The weights and the habits are guesses.** That a Builder seat suits working in bursts, that intention is worth as much as behaviour, or that a team is better for someone who works the way it does, is a choice made for the demo with no data behind it.
+- **The rule's view of a team is crude.** It compares a candidate with the team's averages and counts who wants to lead. It knows nothing of how particular people get on.
+- **Only a scanned project can be entered.** The catalogue's other projects have a team, shown on their card, but no seats: the rules that open a seat need a repository to read.
 - **The committed `site/analysis.js` was written by Claude in a coding session**, from the exact input the tool prints with `--dry`, because no API key was to hand. Each box on the page says so. The tool's own call to the API has not been run.
 - **The model only picks among the rule's top five.** It can reorder them; it cannot bring in someone the rule ranked sixth.
 

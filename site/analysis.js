@@ -48,27 +48,27 @@ window.GTECH_ANALYSIS = {
  },
  "seats": {
   "kopicode/connector": {
-   "pick": "p34",
-   "why": "Chosen over the rule's first choice, Qistina. Jia is already a strong connector and wants to go deeper in it, where Qistina wants the role but scores only 53 at it. The rule also cannot see that Elina and Chitra both want to lead: Qistina would make three would-be leads on a three-person team, and Jia does not want to lead at all. Jia reviews more than anyone, which this team lacks.",
-   "risk": "Jia is as strong a builder as a connector, and Elina and Chitra both work alone. Watch that Jia is not drawn into building beside them while the job the seat exists for, getting the project into the catalogue and known to other teams, goes undone.",
+   "pick": "p25",
+   "why": "Chosen over the rule's first choice, Qistina, who is a middling connector and would be a third person on this team who wants to lead. The two strongest connectors on the list are not really available: Tan has said they want to stay where they are, and Jia is already on two projects with a fifth of a week left. Bao is a capable connector, has the whole week free, is open to moving and does not compete with Elina and Chitra to lead.",
+   "risk": "Bao wants to grow as a builder, not as a connector, and Elina and Chitra are both stretched across two projects and work alone. Watch that Bao does not spend the month learning to build while the job the seat exists for, getting the project into the catalogue and known to other teams, goes undone. If Jia can be released from Relay, Jia is the better fit: already works with Chitra on SubmitHub.",
    "candidates": {
-    "p13": "Would bring the most collaborative working style on the roster to a team of two people who work alone, but is a middling connector today and would be a third person who wants to lead.",
-    "p34": "Strong at the role now, wants more of it, does not compete to lead, and would bring a review habit the team is missing.",
-    "p36": "Wants the role and wants to lead, but prefers to work alone, so the team would gain a third solitary worker and another would-be lead.",
-    "p31": "Willing and sociable, but one of the weaker connectors on the roster: this would be a training placement, not a fix.",
-    "p18": "Reviews a lot, which would help, but works alone and has thin design and quality strength to bring to the conversations a connector has."
+    "p13": "Works with others more than anyone and has time, but is a middling connector today and would be the third person here who wants to lead.",
+    "p3": "The strongest connector on the list and free all week, but wants to stay where they are and to grow as a designer: placing them here goes against what they have said they want.",
+    "p34": "The best fit on skill and intention, and already works with Chitra on SubmitHub, but is on two projects with a fifth of a week spare. Only an option if one of those is given up.",
+    "p25": "A capable connector with a free week who is open to moving and does not want to lead, though their own aim is to learn to build.",
+    "p28": "Wants the role and has some time, but is a weak connector today and never reviews: a learner for a team with no spare time to teach."
    }
   },
   "kopicode/guardian": {
    "pick": "p38",
-   "why": "The rule's first choice too, though for a reason the rule cannot give. This team is not short of quality skill: Chitra is the strongest guardian on the roster and Elina is strong too. What it lacks is the habit, since both work alone and review little, and that is how a project ends up with no tests. Xin is the only one of the five who reviews often and works with others, so Xin changes how the team works, where the other four would add a third person with the same habits.",
-   "risk": "Reviewing takes two. Xin and Chitra both work in bursts and Chitra works almost entirely alone, so watch in the first month whether reviews and tests are really happening or whether Xin is checking work nobody else looks at.",
+   "why": "The rule ranks Xin third because Xin has only a fifth of a week spare; Xin is still the right person. This team is not short of quality skill: Chitra is the strongest guardian on the roster and Elina is strong too. What it lacks is the habit, since both work alone and review little, and that is how a project ends up with no tests. Xin is the only one of the five with real guardian strength who also reviews often. Omar and Ehsan, whom the rule puts first, have the time but the same habits as the team.",
+   "risk": "Time. Xin is on SensorHub and gatelib already, so this pick only works if one of those is handed over; on a fifth of a week nothing here will change. If that cannot be arranged, take Omar, who has the time and links people well, and make reviewing an explicit part of the job from the first week.",
    "candidates": {
-    "p38": "Strong on quality, reviews often and works with others: the one candidate who brings the missing habit as well as the skill.",
-    "p17": "Nearly as strong and a good link between people, but reviews seldom, so the team's pattern would not change.",
-    "p24": "A top builder with real quality strength who works alone and reviews little: more of what the team already has.",
-    "p35": "Capable and willing, but rarely reviews, and a weaker guardian than either person already on the team.",
-    "p30": "Wants to grow into the role and works well with others, but would be learning quality work from a team that is not practising it."
+    "p17": "Strong, has time and is a good link between people, but reviews seldom, so the team's pattern would not change without being asked to.",
+    "p24": "A top builder with real quality strength and time to give, who works alone and reviews little: a third person with the habits the team already has.",
+    "p38": "The one candidate who brings the missing habit as well as the skill, and the one with the least time: on two projects already.",
+    "p35": "Capable and willing, and already works with Chitra on SubmitHub, but rarely reviews and is a weaker guardian than either person on the team.",
+    "p25": "Free all week and reviews more than most here, but quality is not what they want to grow in, and they are the weakest guardian of the five."
    }
   }
  }
