@@ -133,8 +133,15 @@ window.GTECH_DUMMY = (function () {
       }, 0);
     };
     // The last commit is a number of days back from today, so the demo does
-    // not age: three projects in ten have been quiet for more than a quarter.
-    var days = rnd() < 0.3 ? 95 + Math.round(rnd() * 200) : 1 + Math.round(rnd() * 60);
+    // not age: three projects in ten have been quiet for more than a quarter. Of the
+    // rest, most had a commit this week and three in ten have been idle for weeks.
+    var quarter = rnd() < 0.3;
+    var draw = rnd();
+    var days = quarter
+      ? 95 + Math.round(draw * 200)
+      : draw < 0.7
+        ? Math.round((draw / 0.7) * 7)
+        : 9 + Math.round(((draw - 0.7) / 0.3) * 50);
     var last = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
     made[app.id] = {
       schema: "gtech-district/1",

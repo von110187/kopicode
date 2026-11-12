@@ -261,6 +261,9 @@
 
   // ---- What a project's object says about its state, beside what it is.
   var QUIET = 90; // days with no commit, after which the object goes dark and overgrown
+  // The stall rule, fitted and tested on real repositories by tools/backtest.mjs: a project
+  // idle this many days or more is predicted to have no commit in the next 30.
+  var STALL = window.GTECH_STALL || null;
   var THIN = 10; // % of source files that are tests, under which it is taped off
   var YOUNG = 150; // commits, under which the scaffolding is still up
 
@@ -281,6 +284,8 @@
       share: share,
       thin: share != null && share < THIN,
       unowned: !!(entry.app && !entry.app.owner),
+      // Idle long enough for the rule, and not yet so long that it is already overgrown.
+      stalling: !!STALL && !precode && quiet != null && quiet >= STALL.rule.idleDays && quiet <= QUIET,
     };
   }
 
@@ -629,6 +634,9 @@
     }
     var spot = new THREE.Group();
     if (p.flag) spot.add(p.flag);
+    // An amber tag over a project the stall rule marks, above its gaps where it has any.
+    if (p.state && p.state.stalling)
+      spot.add(at(label("likely to stall", 28, "#9a5b00"), 0, p.flag ? 20.6 : 17, 0));
     // A dot above a project for each seat it has open, in the colour of the trait it needs.
     var P = window.GTECH_PEOPLE;
     if (P && !entry.problem) {
@@ -1130,6 +1138,53 @@
     return i < 0 ? GAP_ORDER.length : i;
   }
 
+  /** The projects the stall rule marks, longest idle first, each with the business problems it works on, and how the rule did where it was tested. */
+  function stallOf() {
+    if (!STALL) return "";
+    var rows = places
+      .filter(function (p) {
+        return p.state && p.state.stalling;
+      })
+      .sort(function (a, b) {
+        return b.state.quiet - a.state.quiet;
+      });
+    if (!rows.length) return "";
+    return (
+      '<table><tr><th>Likely to stall</th><th class="n">Idle</th></tr>' +
+      rows
+        .map(function (p) {
+          var risk = (p.entry.app ? p.entry.app.problems : []).map(function (id) {
+            var problem = cat.problems.filter(function (x) {
+              return x.id === id;
+            })[0];
+            return problem ? problem.name : id;
+          });
+          return (
+            '<tr data-entry="' +
+            esc(p.entry.id) +
+            '"><td>' +
+            esc(p.entry.name) +
+            (risk.length
+              ? '<br><span style="color:var(--muted);font-size:11px">at risk: ' + esc(risk.join("; ")) + "</span>"
+              : "") +
+            '</td><td class="n" style="white-space:nowrap">' +
+            p.state.quiet +
+            " days</td></tr>"
+          );
+        })
+        .join("") +
+      '</table><p class="sub" style="margin:8px 0 0">Predicted: no commit in the next 30 days, for a project idle ' +
+      STALL.rule.idleDays +
+      " days or more. Tested on " +
+      STALL.repositories +
+      " real repositories, none of them GTech's: right " +
+      STALL.test.right +
+      " of " +
+      STALL.test.of +
+      " times. The idle days here are dummy.</p>"
+    );
+  }
+
   function showBusiness() {
     var live = cat.apps;
     // Repositories scanned here that the catalogue does not list: the home page cannot see them.
@@ -1140,6 +1195,7 @@
       return n + a.costMonth;
     }, 0);
     var short = shortOf();
+    var stall = stallOf();
     card.hidden = false;
     card.innerHTML =
       "<h2>GTech at a glance</h2>" +
@@ -1172,6 +1228,7 @@
         })
         .join("") +
       "</table>" +
+      (stall ? '<div style="margin-top:12px">' + stall + "</div>" : "") +
       (short ? '<div style="margin-top:12px">' + short + "</div>" : "") +
       '<table style="margin-top:12px"><tr><th>Project</th><th>Status</th><th class="n">Users</th><th class="n">RM / month</th></tr>' +
       live
