@@ -486,7 +486,7 @@ function PersonCard({ m, names, onClose }: { m: MemberRow; names: OrgWorld["name
         <div className="plan">
           <b>{planText(m, names)}</b>
           <span>{m.plan.reason}</span>
-          {m.plan.mentor && <span>Mentor: {m.plan.mentor}</span>}
+          {m.mentor && <span>Mentor: {m.mentor}</span>}
         </div>
       )}
     </aside>
@@ -950,7 +950,7 @@ function Members({ data, search }: { data: Data; search: OrgSearch }) {
                         {planText(m, names)}
                         <small>
                           {m.plan.reason}
-                          {m.plan.mentor && ` · mentor ${m.plan.mentor}`}
+                          {m.mentor && ` · mentor ${m.mentor}`}
                         </small>
                       </>
                     ) : (
@@ -972,13 +972,13 @@ function Members({ data, search }: { data: Data; search: OrgSearch }) {
   );
 }
 
-// A person by name where the person roster names them, else by id.
+// A person by name, marked where the person roster is who names them, with their id under it.
 function Who({ m }: { m: MemberRow }) {
   return (
     <>
-      {m.name ?? m.person}
+      {m.name}
       {m.source === "roster" && <em className="roster">roster</em>}
-      {m.name && <small>{m.person}</small>}
+      <small>{m.person}</small>
     </>
   );
 }

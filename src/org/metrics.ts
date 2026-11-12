@@ -2,6 +2,7 @@
 // The person module owns those values; this file only reads them, through
 // `ValuesOf`, and rolls them up to squads, tribes and departments.
 import { FAMILIES, familyOf, skillName } from "./skills";
+import { standInName } from "./stand-in-names";
 import type { DepartmentId, Intention, Membership, Org } from "./types";
 
 export type Evidence = { kind: "social" | "productivity"; says: string };
@@ -437,7 +438,8 @@ function planBorderline(org: Org, valuesOf: ValuesOf, squads: SquadMetrics[]) {
 
 export type MemberRow = {
   person: string;
-  name: string | null; // where the person module names them
+  name: string; // the person roster's name for them, else an invented stand-in
+  mentor: string | null; // the name of their plan's mentor
   source: "roster" | "stand-in" | null;
   intention: string | null;
   department: DepartmentId;
@@ -474,13 +476,16 @@ export function memberRows(
   const byPerson = new Map<string, Membership[]>();
   for (const m of org.memberships)
     byPerson.set(m.person, [...(byPerson.get(m.person) ?? []), m]);
+  const nameOf = (p: string) => valuesOf(p)?.name ?? standInName(p);
   return [...byPerson].map(([person, ms]) => {
     const v = valuesOf(person);
+    const mentor = plans.get(person)?.mentor;
     const proven = v?.scores.filter((s) => s.evidence.length) ?? [];
     const skills = v ? [...new Set(v.skills)] : null;
     return {
       person,
-      name: v?.name ?? null,
+      name: nameOf(person),
+      mentor: mentor ? nameOf(mentor) : null,
       source: v ? (v.source ?? "stand-in") : null,
       intention: v?.intention ?? null,
       department: chapter.get(ms[0].chapter)!.department,
@@ -602,7 +607,7 @@ export function domainsOf(
           const proven = x.v.scores.filter((s) => s.evidence.length);
           return {
             person: x.p,
-            name: x.v.name ?? null,
+            name: x.v.name ?? standInName(x.p),
             skill: x.v.skills.find((s) => cell.lacking.includes(s))!,
             comms: x.v.comms,
             fit: x.v.comms === f.dominant,
