@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Nav } from "~/components/Nav";
 import { getCatalogue } from "~/server/catalogue";
 import appCss from "~/styles/app.css?url";
 
@@ -25,13 +26,7 @@ function Home() {
 
   return (
     <main>
-      <header>
-        <h1>GTech City</h1>
-        {/* The city draws into the whole document, so it is entered with a full page load. */}
-        <a className="cta" href="/city">
-          Enter the 3D city
-        </a>
-      </header>
+      <Nav />
       <p className="lede">
         Every GTech project as a place in one city, so that someone in the
         business can see what exists, what state it is in, and where the gaps

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CityRouteImport } from './routes/city'
+import { Route as OrgRouteImport } from './routes/org'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +23,40 @@ const CityRoute = CityRouteImport.update({
   path: '/city',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OrgRoute = OrgRouteImport.update({
+  id: '/org',
+  path: '/org',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/city': typeof CityRoute
+  '/org': typeof OrgRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/city': typeof CityRoute
+  '/org': typeof OrgRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/city': typeof CityRoute
+  '/org': typeof OrgRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/city'
+  fullPaths: '/' | '/city' | '/org'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/city'
-  id: '__root__' | '/' | '/city'
+  to: '/' | '/city' | '/org'
+  id: '__root__' | '/' | '/city' | '/org'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CityRoute: typeof CityRoute
+  OrgRoute: typeof OrgRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +75,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CityRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/org': {
+      id: '/org'
+      path: '/org'
+      fullPath: '/org'
+      preLoaderRoute: typeof OrgRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CityRoute: CityRoute,
+  OrgRoute: OrgRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

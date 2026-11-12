@@ -55,6 +55,8 @@ What to know before trusting any of it:
 | A project's buildings, floors, file and line counts, dependencies, stack, services | Read from the repository by `tools/scan.mjs`                            |
 | Commits, contributor count, last commit                                            | Read from git, as counts only: no names                                 |
 | The object a project is drawn as                                                   | Matched by rule from its name and summary, or set by hand with `--kind` |
+| The organisation: tribes, squads, intentions, KPIs, allocations                    | **Invented** (`src/org/mock-org.ts`)                                    |
+| People's values the org metrics read (skills, comms preference, scores, proof)     | **A stand-in** for the person module, which is built separately (`src/org/stand-in-values.ts`) |
 | **People: names, the four traits, behaviour, intention, contributions, quality**   | **Invented from a seed. Nothing is read from git, HR or an interview**  |
 | Why a seat is open: the share of tests, the days since the last commit             | Read from the repository and git                                        |
 | Why a seat is open: no owner, not in the catalogue, a trait the team lacks         | The dummy catalogue and the invented team                               |
@@ -73,6 +75,7 @@ npm start            # serve the build
 ```
 
 - `/` is the catalogue and its gaps, rendered on the server (`src/routes/index.tsx`, data from `src/server/catalogue.ts`).
+- `/org` is the organisation: about 1000 people in a simplified Spotify model (departments, tribes, squads, chapters, guilds), with group metrics: skill coverage and what is lacking, bottlenecks, communication preferences, proof behind scores, and impact against project and department intentions (`src/org/`).
 - `/city` is the 3D city (`src/routes/city.tsx`), which loads the three.js viewer in `public/city/`.
 
 The catalogue lives in `src/data/catalogue.ts` and feeds both pages.
