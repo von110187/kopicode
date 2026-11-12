@@ -276,6 +276,14 @@ td em {
 .squads {
   min-width: 860px;
 }
+/* The members' table keeps to the drawer's width, so its last column, the plan, is read without scrolling. */
+.squads.members {
+  min-width: 0;
+}
+.squads.members td.n,
+.squads.members em {
+  white-space: nowrap;
+}
 tr.hot td:first-child {
   box-shadow: inset 3px 0 0 #d9a441;
   padding-left: 8px;
