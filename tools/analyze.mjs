@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 // Asks Claude to read the mock people and the open seats, and writes what it
-// says to site/analysis.js, which the page shows beside the rule's own score.
+// says to public/city/analysis.js, which the page shows beside the rule's own score.
 //   node tools/analyze.mjs [--dry]
 // The key is read from the environment (ANTHROPIC_API_KEY, and
 // ANTHROPIC_BASE_URL for a gateway) and never reaches the page.
-// EVERYTHING SENT IS INVENTED: the people come from site/people.js and the
-// catalogue from site/catalogue.js. Of a scanned repository only its id, its
+// EVERYTHING SENT IS INVENTED: the people come from public/city/people.js and the
+// catalogue from src/data/catalogue.ts. Of a scanned repository only its id, its
 // name and the reasons its seats are open are sent: no structure, no file.
 // --dry prints what would be sent and calls nothing.
 import fs from "node:fs";
@@ -15,9 +15,10 @@ import { fileURLToPath } from "node:url";
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
+import { catalogue } from "../src/data/catalogue.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const SITE = path.join(HERE, "..", "site");
+const SITE = path.join(HERE, "..", "public", "city");
 const OUT = path.join(SITE, "analysis.js");
 const MODEL = "claude-opus-5-5";
 const TOP = 5; // candidates a seat, as the rule ranks them
@@ -34,7 +35,7 @@ if (fs.existsSync(path.join(SITE, "districts", "index.js"))) {
   run("districts/index.js");
   for (const id of window.GTECH_DISTRICT_IDS || []) run(`districts/${id}.js`);
 }
-run("catalogue.js");
+window.GTECH_CATALOGUE = catalogue;
 run("dummy.js");
 run("people.js");
 const People = window.GTECH_PEOPLE;

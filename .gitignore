@@ -1,9 +1,13 @@
 # Scanned districts hold a repository's structure; a private one stays off the remote.
-site/districts/*.js
+public/city/districts/*.js
 # The one exception: this repository's own scan, so the deployed site has a project to enter.
-!site/districts/index.js
-!site/districts/kopicode.js
+!public/city/districts/index.js
+!public/city/districts/kopicode.js
 .DS_Store
-# site/analysis.js is committed so the deployed site shows it. It names the projects it
+# public/city/analysis.js is committed so the deployed site shows it. It names the projects it
 # covers: before committing a new one, check it names no private repository.
 node_modules/
+dist/
+.output/
+.tanstack/
+.nitro/
