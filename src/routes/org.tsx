@@ -273,7 +273,8 @@ function OrgPage() {
         </div>
       )}
 
-      <div className="hud-key">
+      {/* The key explains the marks a pick draws, so it shows only once something is picked. */}
+      <div className="hud-key" hidden={!fit}>
         <span className="k-ring">◯</span> fits everything picked
         {picked.length > 1 && (
           <>
@@ -911,7 +912,7 @@ function Members({ data, search }: { data: Data; search: OrgSearch }) {
           </span>
         </div>
         <div className="scroll">
-          <table className="squads">
+          <table className="squads members">
             <thead>
               <tr>
                 <th>Person</th>

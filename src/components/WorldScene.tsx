@@ -200,8 +200,11 @@ function label(text: string, sub: string, hue: number) {
     g.fillStyle = `hsl(${hue} 45% 45%)`;
     g.fillRect(36, 40, 12, 80);
     g.fillStyle = "#23302a";
-    g.font = "bold 52px system-ui, sans-serif";
-    g.fillText(t.length > 20 ? `${t.slice(0, 19)}…` : t, 68, 82);
+    // A long name is set smaller until it fits the plate; none is cut short.
+    let px = 52;
+    do g.font = `bold ${px}px system-ui, sans-serif`;
+    while (g.measureText(t).width > 536 && (px -= 2) > 24);
+    g.fillText(t, 68, 82);
     g.font = "34px system-ui, sans-serif";
     g.fillStyle = "#5d6a62";
     g.fillText(s, 68, 128);
@@ -459,9 +462,10 @@ export function WorldScene({
     let hidden: Uint8Array = new Uint8Array(N);
     let sel = -1;
 
-    // Start above the plaza, looking out over the islands.
-    camera.position.set(0, R * 1.45, R * 1.85);
-    controls.target.set(0, 2, 0);
+    // Start above the plaza, looking out over the islands, aimed a little this side of it
+    // so the nearest islands' names stand clear of the dock.
+    camera.position.set(0, R * 1.57, R * 2.14);
+    controls.target.set(0, 2, R * 0.14);
     controls.maxDistance = R * 4;
     controls.minDistance = 6;
 
