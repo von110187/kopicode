@@ -57,6 +57,7 @@ function City() {
       await load("dummy.js"); // a dummy inside for each project with no scanned repository
       await load("analysis.js"); // written by tools/analyze.mjs; the page works without it
       await load("people.js");
+      await load("agent.js"); // the agent's moves, worked out by rule
       await load("city.js");
     })();
   }, []);
@@ -82,6 +83,9 @@ function City() {
           Tour
         </button>
         <button id="staffing">Staffing</button>
+        <button id="agent" className="lead">
+          Agent
+        </button>
         <button id="motion" aria-pressed="false" hidden>
           Play motion
         </button>
