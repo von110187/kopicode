@@ -91,6 +91,8 @@ export type Part = {
   p: [number, number, number];
   r?: [number, number, number];
   s?: [number, number, number];
+  // Swings about x through a pivot at this height while walking; sign is the phase side.
+  swing?: { pivot: number; sign: 1 | -1; amp: number };
 };
 
 const DARK = 0x23302a;
@@ -100,18 +102,18 @@ export function partsOf(look: Look): Part[] {
   const w = look.build;
   const parts: Part[] = [
     // legs and shoes
-    { geo: "leg", mat: "denim", color: look.pants, p: [-0.19 * w, 0.62, 0] },
-    { geo: "leg", mat: "denim", color: look.pants, p: [0.19 * w, 0.62, 0] },
-    { geo: "shoe", mat: "plain", color: look.shoes, p: [-0.19 * w, 0.09, 0.07] },
-    { geo: "shoe", mat: "plain", color: look.shoes, p: [0.19 * w, 0.09, 0.07] },
+    { geo: "leg", mat: "denim", color: look.pants, p: [-0.19 * w, 0.62, 0], swing: { pivot: 1.15, sign: 1, amp: 0.5 } },
+    { geo: "leg", mat: "denim", color: look.pants, p: [0.19 * w, 0.62, 0], swing: { pivot: 1.15, sign: -1, amp: 0.5 } },
+    { geo: "shoe", mat: "plain", color: look.shoes, p: [-0.19 * w, 0.09, 0.07], swing: { pivot: 1.15, sign: 1, amp: 0.5 } },
+    { geo: "shoe", mat: "plain", color: look.shoes, p: [0.19 * w, 0.09, 0.07], swing: { pivot: 1.15, sign: -1, amp: 0.5 } },
     // body
     { geo: "torso", mat: look.outfit, color: look.outfitColor, p: [0, 1.08, 0], s: [w, 1, w * 0.74] },
     { geo: "neck", mat: "skin", color: look.skin, p: [0, 2.2, 0] },
     // arms in sleeves, and hands
-    { geo: "arm", mat: look.outfit, color: look.outfitColor, p: [-0.47 * w, 1.72, 0], r: [0, 0, -0.1] },
-    { geo: "arm", mat: look.outfit, color: look.outfitColor, p: [0.47 * w, 1.72, 0], r: [0, 0, 0.1] },
-    { geo: "hand", mat: "skin", color: look.skin, p: [-0.52 * w, 1.2, 0.02] },
-    { geo: "hand", mat: "skin", color: look.skin, p: [0.52 * w, 1.2, 0.02] },
+    { geo: "arm", mat: look.outfit, color: look.outfitColor, p: [-0.47 * w, 1.72, 0], r: [0, 0, -0.1], swing: { pivot: 2.12, sign: -1, amp: 0.45 } },
+    { geo: "arm", mat: look.outfit, color: look.outfitColor, p: [0.47 * w, 1.72, 0], r: [0, 0, 0.1], swing: { pivot: 2.12, sign: 1, amp: 0.45 } },
+    { geo: "hand", mat: "skin", color: look.skin, p: [-0.52 * w, 1.2, 0.02], swing: { pivot: 2.12, sign: -1, amp: 0.45 } },
+    { geo: "hand", mat: "skin", color: look.skin, p: [0.52 * w, 1.2, 0.02], swing: { pivot: 2.12, sign: 1, amp: 0.45 } },
     // head and face
     { geo: "head", mat: "skin", color: look.skin, p: [0, 2.58, 0], s: [1, 1.08, 0.98] },
     { geo: "ear", mat: "skin", color: look.skin, p: [-0.36, 2.58, 0], s: [0.5, 1, 0.8] },
@@ -170,6 +172,7 @@ export function partsOf(look: Look): Part[] {
   }
   return parts.map((part) => ({
     ...part,
+    swing: part.swing && { ...part.swing, pivot: part.swing.pivot * look.height },
     // Height scales the whole figure; build only the body's breadth.
     p: [part.p[0], part.p[1] * look.height, part.p[2]] as [number, number, number],
     s: [
@@ -425,64 +428,94 @@ export function createFigureKit(THREE: Three) {
   }
 
   /**
-   * Many figures, one instanced mesh for each kind of part. `place` sets
-   * where figure i stands. Each mesh keeps, for each instance, which figure
-   * it belongs to (`userData.owner`) and its own colour (`userData.base`).
+   * Many figures, one instanced mesh for each kind of part. Each figure is
+   * posed by `pose`: where it stands, which way it faces, how far through a
+   * stride it is, and its size (0 hides it). Each mesh keeps, for each
+   * instance, which figure it belongs to (`userData.owner`).
    */
-  function crowd(looks: Look[], place: (i: number, o: T.Object3D) => void) {
-    const groups = new Map<string, { part: Part; owner: number }[]>();
+  function crowd(looks: Look[]) {
+    type Entry = { owner: number; local: T.Matrix4; swing?: Part["swing"] };
+    const groups = new Map<string, { entries: Entry[]; colors: number[] }>();
     looks.forEach((look, owner) => {
       for (const part of partsOf(look)) {
         const key = `${part.geo}|${part.mat}`;
-        if (!groups.has(key)) groups.set(key, []);
-        groups.get(key)!.push({ part, owner });
+        if (!groups.has(key)) groups.set(key, { entries: [], colors: [] });
+        const g = groups.get(key)!;
+        g.entries.push({ owner, local: local(part).clone(), swing: part.swing });
+        g.colors.push(part.color);
       }
-    });
-    const where = looks.map((_, i) => {
-      const o = new THREE.Object3D();
-      place(i, o);
-      o.updateMatrix();
-      return o.matrix.clone();
     });
     const root = new THREE.Group();
-    const m4 = new THREE.Matrix4();
+    const meshes: { im: T.InstancedMesh; entries: Entry[]; base: Float32Array }[] = [];
     const c = new THREE.Color();
-    for (const [key, list] of groups) {
+    for (const [key, { entries, colors }] of groups) {
       const [geo, mat] = key.split("|");
-      const im = new THREE.InstancedMesh(geos[geo], material(mat), list.length);
-      const owners = new Int32Array(list.length);
-      const base = new Float32Array(list.length * 3);
-      list.forEach(({ part, owner }, i) => {
-        m4.multiplyMatrices(where[owner], local(part));
-        im.setMatrixAt(i, m4);
-        c.setHex(part.color);
+      const im = new THREE.InstancedMesh(geos[geo], material(mat), entries.length);
+      im.frustumCulled = false; // figures move; one bounding sphere would go stale
+      const base = new Float32Array(entries.length * 3);
+      colors.forEach((hex, i) => {
+        c.setHex(hex);
         im.setColorAt(i, c);
-        owners[i] = owner;
         base.set([c.r, c.g, c.b], i * 3);
       });
-      im.instanceMatrix.needsUpdate = true;
-      if (im.instanceColor) im.instanceColor.needsUpdate = true;
-      im.userData = { owner: owners, base };
+      im.userData = { owner: Int32Array.from(entries.map((e) => e.owner)) };
+      im.castShadow = true;
       root.add(im);
+      meshes.push({ im, entries, base });
     }
-    return root;
-  }
 
-  /** Greys out the figures `dim` says, and restores the rest. */
-  function dimCrowd(root: T.Group, dim: (owner: number) => boolean) {
-    const c = new THREE.Color();
-    const grey = new THREE.Color(0xd8d4cc);
-    for (const child of root.children) {
-      const im = child as T.InstancedMesh;
-      const { owner, base } = im.userData as { owner: Int32Array; base: Float32Array };
-      for (let i = 0; i < owner.length; i++) {
-        c.setRGB(base[i * 3], base[i * 3 + 1], base[i * 3 + 2]);
-        if (dim(owner[i])) c.lerp(grey, 0.82);
-        im.setColorAt(i, c);
+    const person = looks.map(() => new THREE.Matrix4());
+    const m = new THREE.Matrix4();
+    const swing = new THREE.Matrix4();
+    const rx = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const up = new THREE.Vector3(0, 1, 0);
+    const v = new THREE.Vector3();
+    const sc = new THREE.Vector3();
+
+    /** poses: x, y, z, heading, stride phase, scale; six numbers a figure. */
+    function pose(poses: Float32Array) {
+      for (let i = 0; i < looks.length; i++) {
+        const o = i * 6;
+        q.setFromAxisAngle(up, poses[o + 3]);
+        person[i].compose(v.set(poses[o], poses[o + 1], poses[o + 2]), q, sc.setScalar(poses[o + 5]));
       }
-      if (im.instanceColor) im.instanceColor.needsUpdate = true;
+      for (const { im, entries } of meshes) {
+        for (let k = 0; k < entries.length; k++) {
+          const e = entries[k];
+          const o = e.owner * 6;
+          if (e.swing) {
+            const a = Math.sin(poses[o + 4]) * e.swing.amp * e.swing.sign;
+            // About a pivot: up to it, turn, and back down.
+            swing.makeTranslation(0, e.swing.pivot, 0);
+            swing.multiply(rx.makeRotationX(a));
+            swing.multiply(rx.makeTranslation(0, -e.swing.pivot, 0));
+            m.multiplyMatrices(person[e.owner], swing).multiply(e.local);
+          } else m.multiplyMatrices(person[e.owner], e.local);
+          im.setMatrixAt(k, m);
+        }
+        im.instanceMatrix.needsUpdate = true;
+      }
     }
+
+    /** Tints each figure: 0 its own colours, 1 greyed out, 2 red. */
+    function tint(fn: (owner: number) => 0 | 1 | 2) {
+      const grey = new THREE.Color(0xd8d4cc);
+      const red = new THREE.Color(0xd93a2f);
+      for (const { im, entries, base } of meshes) {
+        entries.forEach((e, i) => {
+          c.setRGB(base[i * 3], base[i * 3 + 1], base[i * 3 + 2]);
+          const t = fn(e.owner);
+          if (t === 1) c.lerp(grey, 0.85);
+          else if (t === 2) c.lerp(red, 0.7);
+          im.setColorAt(i, c);
+        });
+        if (im.instanceColor) im.instanceColor.needsUpdate = true;
+      }
+    }
+
+    return { root, pose, tint };
   }
 
-  return { mesh, crowd, dimCrowd, randomLook, partsOf };
+  return { mesh, crowd, randomLook, partsOf };
 }

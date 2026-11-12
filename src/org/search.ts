@@ -1,57 +1,58 @@
-// What /org shows, kept in the URL: a grouping, the groups picked in it,
-// how to show them (metrics, members or in 3D), and the filters on people.
-import { FAMILIES, SKILLS } from "./skills";
+// What /org shows, kept in the URL. The world always shows everyone; picks
+// made in the dock light up who fits. Within one dock any pick matches;
+// across docks every dock must match.
+import { SKILLS } from "./skills";
 
-export const LEVELS = ["department", "tribe", "squad", "chapter", "guild", "domain"] as const;
+export const LEVELS = ["company", "department", "tribe", "squad", "chapter", "guild", "domain"] as const;
 export type Level = (typeof LEVELS)[number];
-export const VIEWS = ["metrics", "members", "3d"] as const;
+// The dock's dimensions: the groupings, then skills, tags and status.
+export const DIMS = [...LEVELS, "skill", "tag", "status"] as const;
+export type Dim = (typeof DIMS)[number];
+// Metrics and members open over the world; "3d" is the world alone.
+export const VIEWS = ["3d", "metrics", "members"] as const;
 export type View = (typeof VIEWS)[number];
-export const STATUSES = ["", "borderline", "overloaded", "spare", "fills-gap"] as const;
+export const STATUSES = ["borderline", "overloaded", "spare", "fills-gap"] as const;
 export type Status = (typeof STATUSES)[number];
-const DEPTS = ["", "sales-marketing", "engineering", "product", "finance", "hr"] as const;
+
+export type Picks = Partial<Record<Dim, string[]>>;
 
 export type OrgSearch = {
-  level: Level;
-  groups: string[];
+  level: Level; // the grouping metrics and members are read by
+  groups: string[]; // the groups of that grouping they are read for
   view: View;
-  dept: (typeof DEPTS)[number];
-  family: string;
-  skill: string;
-  tag: string;
-  status: Status;
+  pick: Picks;
+  single: boolean; // hide who fits nothing picked, instead of greying them out
 };
 
-const str = (v: unknown) => (typeof v === "string" ? v : "");
+const SKILL_IDS = new Set(SKILLS.map((s) => s.id));
+const TAGS = new Set(SKILLS.flatMap((s) => s.tags));
+const strings = (v: unknown, max = 200) =>
+  Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.length < 80).slice(0, max) : [];
 
 export function parseOrgSearch(s: Record<string, unknown>): OrgSearch {
   const level = LEVELS.includes(s.level as Level) ? (s.level as Level) : "tribe";
-  const groups = Array.isArray(s.groups)
-    ? s.groups.filter((g): g is string => typeof g === "string").slice(0, 200)
-    : [];
-  const family = FAMILIES.some((f) => f.id === s.family) ? str(s.family) : "";
-  // A skill must belong to the family picked, and a tag to the skill.
-  const sk = SKILLS.find((x) => x.id === s.skill && (!family || x.family === family));
-  const skill = sk ? sk.id : "";
-  const tag = sk && sk.tags.includes(str(s.tag)) ? str(s.tag) : "";
+  const raw = (s.pick && typeof s.pick === "object" ? s.pick : {}) as Record<string, unknown>;
+  const pick: Picks = {};
+  for (const d of DIMS) {
+    let v = strings(raw[d]);
+    if (d === "skill") v = v.filter((x) => SKILL_IDS.has(x));
+    if (d === "tag") v = v.filter((x) => TAGS.has(x));
+    if (d === "status") v = v.filter((x) => (STATUSES as readonly string[]).includes(x));
+    if (v.length) pick[d] = v;
+  }
   return {
     level,
-    groups,
-    view: VIEWS.includes(s.view as View) ? (s.view as View) : "metrics",
-    dept: DEPTS.includes(s.dept as (typeof DEPTS)[number]) ? (s.dept as OrgSearch["dept"]) : "",
-    family,
-    skill,
-    tag,
-    status: STATUSES.includes(s.status as Status) ? (s.status as Status) : "",
+    groups: strings(s.groups),
+    view: VIEWS.includes(s.view as View) ? (s.view as View) : "3d",
+    pick,
+    single: s.single === true || s.single === "true",
   };
 }
 
 export const DEFAULT_SEARCH: OrgSearch = {
   level: "tribe",
   groups: [],
-  view: "metrics",
-  dept: "",
-  family: "",
-  skill: "",
-  tag: "",
-  status: "",
+  view: "3d",
+  pick: {},
+  single: false,
 };

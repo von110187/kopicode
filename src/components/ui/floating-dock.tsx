@@ -17,7 +17,9 @@ export type DockItem = {
   icon: ReactNode;
   href?: string;
   onClick?: () => void;
+  onHover?: () => void;
   active?: boolean;
+  badge?: number; // how many are picked under this item
 };
 
 export const FloatingDock = ({
@@ -177,7 +179,10 @@ function IconContainer({
       <motion.div
         ref={ref}
         style={{ width, height }}
-        onMouseEnter={() => setHovered(true)}
+        onMouseEnter={() => {
+          setHovered(true);
+          item.onHover?.();
+        }}
         onMouseLeave={() => setHovered(false)}
         className={cn(
           "relative flex aspect-square items-center justify-center rounded-full bg-gray-200 text-neutral-600",
@@ -202,6 +207,11 @@ function IconContainer({
         >
           {item.icon}
         </motion.div>
+        {item.badge ? (
+          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#f2a900] px-1 text-[10px] font-bold text-[#23302a]">
+            {item.badge}
+          </span>
+        ) : null}
       </motion.div>
     </ItemLink>
   );
