@@ -274,7 +274,8 @@ window.GTECH_PEOPLE = (function () {
 
   /**
    * Everyone not already on the project, scored for one of its seats, best
-   * first. A score is behaviour (40), intention (40) and time (20), each part
+   * first. A score is behaviour (40), intention (40), time (20) and fit with
+   * the team already there (20), each part
    * kept so the card can show where the number came from. A seat with no
    * business area leaves that part out and scores out of what is left.
    * The invented quality figure plays no part.
@@ -288,6 +289,25 @@ window.GTECH_PEOPLE = (function () {
       return x.key === habit.key;
     })[0];
     var path = t.key === "connector" ? "lead" : "specialise";
+    // The team as it is: how it works on average, and who in it wants to lead.
+    var mean = function (key) {
+      return (
+        team.reduce(function (n, m) {
+          return n + m.behaviour[key];
+        }, 0) / team.length
+      );
+    };
+    var teamHabit = mean(habit.key);
+    var teamTogether = mean("together");
+    var leads = team.filter(function (m) {
+      return m.intention.path.key === "lead";
+    }).length;
+    var end = function (x, v) {
+      return x.key === "pace" && v < 50 ? "steadily" : v < 50 ? x.low : x.high;
+    };
+    var bTogether = BEHAVIOURS.filter(function (x) {
+      return x.key === "together";
+    })[0];
     return roster
       .filter(function (p) {
         if (
@@ -347,6 +367,55 @@ window.GTECH_PEOPLE = (function () {
             of: 20,
           },
         ];
+        // Fit with the people already there. The seat's habit counts for more
+        // where the team does not have it; a way of working counts for more
+        // the closer it is to the team's; one more would-be lead is a clash.
+        var mine = habit.high ? v : 100 - v;
+        var theirs = habit.high ? teamHabit : 100 - teamHabit;
+        var wantsLead = p.intention.path.key === "lead";
+        parts.push(
+          {
+            group: "Team",
+            says:
+              "the team " +
+              (b.key === "review" ? "reviews " : "works ") +
+              end(b, teamHabit) +
+              ", they " +
+              (b.key === "review" ? "review " : "work ") +
+              end(b, v),
+            got: Math.round((mine / 100) * (1 - theirs / 100) * 10),
+            of: 10,
+          },
+        );
+        // Where the seat itself is there to bring people together, a likeness
+        // to a team that works alone is no merit, so that part is left out.
+        if (habit.key !== "together")
+          parts.push(
+          {
+              group: "Team",
+              says:
+                "the team works " +
+                end(bTogether, teamTogether) +
+                ", they work " +
+                end(bTogether, p.behaviour.together),
+              got: Math.round(
+                (1 - Math.abs(p.behaviour.together - teamTogether) / 100) * 5,
+              ),
+              of: 5,
+            },
+          );
+        parts.push(
+          {
+            group: "Team",
+            says: !wantsLead
+              ? "does not compete to lead"
+              : leads
+                ? "would be one more who wants to lead (" + leads + " already)"
+                : "wants to lead, and nobody on the team does",
+            got: wantsLead && leads ? 0 : 5,
+            of: 5,
+          },
+        );
         if (seat.area)
           parts.splice(3, 0, {
             group: "Intention",
@@ -747,7 +816,7 @@ window.GTECH_PEOPLE = (function () {
   var BACK =
     'style="border:0;background:none;padding:0;margin:0 0 8px;color:#5d6a62;font:inherit;font-size:12px;cursor:pointer;text-decoration:underline"';
   var NO_SCORE =
-    '<p class="sub" style="margin-top:10px">Mock data, scored by rule: behaviour 40, intention 40 (30 where the seat has no business area), time 20, shown as a share of 100. Every person is invented, so the ranking shows how the match works and says nothing about anyone real. The quality figure is not used.</p>';
+    '<p class="sub" style="margin-top:10px">Mock data, scored by rule: behaviour 40, intention 40 (30 where the seat has no business area), time 20, fit with the team up to 20, shown as a share of 100. Every person is invented, so the ranking shows how the match works and says nothing about anyone real. The quality figure is not used.</p>';
 
   /** The people who could take a seat, best first, with the filters above them. */
   function shortlistCard(seat, d, list, filters) {

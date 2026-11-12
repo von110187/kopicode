@@ -113,7 +113,7 @@ Each person has:
 - behaviour: how they work, as it would be observed. Each scale runs between two ends and neither end is better in itself.
 - intention: what they want, as they would say it themselves.
 
-Each open seat names the trait a project is short of, why the seat is open, who is already on the team, and the five people a simple scoring rule ranked highest, with the parts of each score. The rule adds up points and cannot see the team as a whole.
+Each open seat names the trait a project is short of, why the seat is open, who is already on the team, and the five people a simple scoring rule ranked highest, with the parts of each score. The rule adds up points. Its view of the team is crude: it compares the candidate with the team's averages and counts who wants to lead, and it cannot see how particular people would get on.
 
 Your job has two parts.
 
