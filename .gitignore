@@ -1,0 +1,3 @@
+# Scanned districts hold a repository's structure; a private one stays off the remote.
+site/districts/*.js
+.DS_Store
