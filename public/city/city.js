@@ -621,7 +621,7 @@
     if (flagged) {
       var flag = label(
         flagged + (flagged > 1 ? " gaps" : " gap"),
-        20,
+        30,
         "#b3261e",
       );
       flag.position.set(0, 17, 0);
@@ -1122,8 +1122,15 @@
     );
   }
 
+  // The order the card lists gaps in: what the business lacks or pays twice for first, upkeep last.
+  var GAP_ORDER = ["no-project", "overlap", "costly", "no-owner", "unlisted", "stale-docs", "no-docs-date"];
+
   function showBusiness() {
     var live = cat.apps;
+    // Repositories scanned here that the catalogue does not list: the home page cannot see them.
+    var unlisted = gapList.filter(function (g) {
+      return g.rule === "unlisted";
+    }).length;
     var cost = live.reduce(function (n, a) {
       return n + a.costMonth;
     }, 0);
@@ -1136,10 +1143,16 @@
       rm(cost) +
       "</b><span>a month (dummy)</span></div><div><b>" +
       gapList.length +
-      "</b><span>gaps</span></div></div>" +
-      shortOf() +
+      "</b><span>gaps" +
+      (unlisted ? ": " + (gapList.length - unlisted) + " in the catalogue, " + unlisted + " outside it" : "") +
+      "</span></div></div>" +
+      // The gaps lead the card: they are what a business viewer came for.
       "<table><tr><th>Gaps, by rule</th></tr>" +
       gapList
+        .slice()
+        .sort(function (a, b) {
+          return GAP_ORDER.indexOf(a.rule) - GAP_ORDER.indexOf(b.rule);
+        })
         .map(function (g) {
           var id = g.apps[0] || "gap-" + g.problem;
           return (
@@ -1153,6 +1166,9 @@
         })
         .join("") +
       "</table>" +
+      '<div style="margin-top:12px">' +
+      shortOf() +
+      "</div>" +
       '<table style="margin-top:12px"><tr><th>Project</th><th>Status</th><th class="n">Users</th><th class="n">RM / month</th></tr>' +
       live
         .map(function (a) {
@@ -1507,7 +1523,8 @@
 
   /** The middle of the world as the camera should hold it: clear of the card on a wide screen. */
   function worldCentre() {
-    return innerWidth > 900 ? new THREE.Vector3(13, 4, -8.5) : new THREE.Vector3(0, 4, 0);
+    // Held forward of the middle, so the front row (the problems no project works on) stands clear of the key.
+    return innerWidth > 900 ? new THREE.Vector3(13, 4, 20) : new THREE.Vector3(0, 4, 0);
   }
 
   function leave() {

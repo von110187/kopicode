@@ -91,6 +91,8 @@ function City() {
         <span>Taped off: under 10% tests</span>
         <span>Scaffolding: a young project</span>
         <span>A pennant: short of someone</span>
+        <span>To let: planned, no code yet</span>
+        <span>A red ring: a problem no project works on</span>
       </div>
       <div id="hint">
         A district is a repository. A building is one app or package, a floor
