@@ -504,7 +504,8 @@ window.GTECH_PEOPLE = (function () {
    * not depend on what is clicked: the scanned ones first (each as large as its
    * git contributor count), then the catalogue's other projects, which have no
    * repository to count, so their size and commits are invented from a seed.
-   * `list` is [{ id, name, district }], `district` null where none is scanned.
+   * `list` is [{ id, name, district }]; `district` is a scan, a dummy inside
+   * (marked `dummy`) or null.
    */
   var projects = {};
   /** A project as the people module knows it: its scan, or a stand-in with a mock team size. */
@@ -513,34 +514,30 @@ window.GTECH_PEOPLE = (function () {
   }
 
   function staff(list) {
+    var real = function (e) {
+      return e.district && !e.district.dummy;
+    };
+    list.filter(real).forEach(function (e) {
+      projects[e.id] = e.district;
+      teamOf(e.district);
+    });
     list
       .filter(function (e) {
-        return e.district;
-      })
-      .forEach(function (e) {
-        projects[e.id] = e.district;
-        teamOf(e.district);
-      });
-    list
-      .filter(function (e) {
-        return !e.district;
+        return !real(e);
       })
       .forEach(function (e) {
         var rnd = seeded("size:" + e.id);
-        teamOf(
-          (projects[e.id] = {
-          id: e.id,
-          name: e.name,
-          git: {
-            contributors: 2 + Math.floor(rnd() * 2),
-            commits: 80 + Math.round(rnd() * 900),
-          },
-          }),
-        );
+        // A dummy inside keeps its own structure; its team size and commits are set here.
+        var d = e.district || { id: e.id, name: e.name };
+        d.git = d.git || {};
+        d.git.contributors = 2 + Math.floor(rnd() * 2);
+        d.git.commits = 80 + Math.round(rnd() * 900);
+        projects[e.id] = d;
+        teamOf(d);
       });
   }
 
-  /** The people on a project that cannot be entered, for its card. */
+  /** The people on a project, for its card. */
   function teamCard(id) {
     var team = teams[id];
     if (!team) return "";
@@ -834,7 +831,7 @@ window.GTECH_PEOPLE = (function () {
       QUIET_DAYS +
       " days, documentation over " +
       OLD_DOCS +
-      " days old, no owner, or a trait nobody on the team has. Tests and commits are read from a scanned repository; the catalogue and the team are invented. Click a seat for who could take it.</p>"
+      " days old, no owner, or a trait nobody on the team has. Tests and commits are read from a scanned repository and invented for a dummy inside; the catalogue and the team are invented. Click a seat for who could take it.</p>"
     );
   }
 

@@ -421,7 +421,9 @@
         name: a.name,
         kind: a.kind,
         app: a,
-        district: scanned[a.id] || null,
+        // A project with no scanned repository gets a dummy inside, so it can be entered.
+        district:
+          scanned[a.id] || (window.GTECH_DUMMY ? window.GTECH_DUMMY(a) : null),
       };
     })
     .concat(
@@ -789,8 +791,10 @@
     card.innerHTML =
       "<h2>" +
       esc(d.name) +
-      '</h2><p class="sub">project · scanned ' +
-      esc(d.scannedAt) +
+      '</h2><p class="sub">' +
+      (d.dummy
+        ? "project · dummy inside: no repository scanned"
+        : "project · scanned " + esc(d.scannedAt)) +
       "</p>" +
       (d.summary ? "<p>" + esc(d.summary) + "</p>" : "") +
       '<div class="facts"><div><b>' +
@@ -913,6 +917,13 @@
         );
       },
     );
+    if (typeof here !== "undefined") {
+      here.hidden = !(inside && inside.district.dummy);
+      if (!here.hidden) {
+        here.textContent = inside.district.name;
+        here.setAttribute("aria-pressed", "true");
+      }
+    }
     explodeBtn.hidden = !inside;
     // With no dependency between its buildings a project has no wiring to show.
     wiringBtn.hidden = !inside || !inside.wires.children.length;
@@ -932,7 +943,12 @@
   function showProject() {
     var p = inside;
     showDistrict(p.district);
-    card.innerHTML += seatsOf(p.entry, showProject);
+    if (p.district.dummy)
+      card.innerHTML +=
+        '<p class="sub" style="margin-top:8px">Every building, floor, count, dependency and date above is invented, so that the project has an inside. Scan its repository to replace it.</p>';
+    card.innerHTML +=
+      (People ? People.teamCard(p.district.id) : "") +
+      seatsOf(p.entry, showProject);
     card.innerHTML +=
       '<h2 style="margin-top:14px;font-size:14px">Business</h2>' +
       businessHtml(p.entry) +
@@ -1186,11 +1202,16 @@
   }
   chip("World", "", leave);
   places.forEach(function (p) {
-    if (!p.district) return; // only a project with a scanned repository has an inside
+    // A chip for each scanned repository; a dummy inside is reached from the world.
+    if (!p.district || p.district.dummy) return;
     chip(p.district.name, p.district.id, function () {
       enter(p);
     });
   });
+  // One more chip names the dummy project the page is inside, while it is.
+  chip("", "here", function () {});
+  var here = bar.lastChild;
+  here.hidden = true;
 
   explodeBtn.setAttribute("aria-pressed", String(explodeGoal === 1));
   explodeBtn.addEventListener("click", function () {

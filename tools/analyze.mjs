@@ -25,7 +25,7 @@ const TOP = 5; // candidates a seat, as the rule ranks them
 // The page's own scripts, run as the page runs them, so the people, the teams
 // and the scores here are the ones the page shows.
 const window = {};
-const ctx = vm.createContext({ window });
+const ctx = vm.createContext({ window, Date });
 const run = (file) =>
   vm.runInContext(fs.readFileSync(path.join(SITE, file), "utf8"), ctx, {
     filename: file,
@@ -35,6 +35,7 @@ if (fs.existsSync(path.join(SITE, "districts", "index.js"))) {
   for (const id of window.GTECH_DISTRICT_IDS || []) run(`districts/${id}.js`);
 }
 run("catalogue.js");
+run("dummy.js");
 run("people.js");
 const People = window.GTECH_PEOPLE;
 const cat = window.GTECH_CATALOGUE;
@@ -46,7 +47,7 @@ const entries = cat.apps
     id: a.id,
     name: a.name,
     app: a,
-    district: districts.find((d) => d.id === a.id) || null,
+    district: districts.find((d) => d.id === a.id) || window.GTECH_DUMMY(a),
   }))
   .concat(
     districts
@@ -136,7 +137,8 @@ const Out = z.object({
 const user = `<people>\n${JSON.stringify(people)}\n</people>\n\n<open_seats>\n${JSON.stringify(seats)}\n</open_seats>`;
 
 if (process.argv.includes("--dry")) {
-  console.log(SYSTEM + "\n\n" + user);
+  // Written in one synchronous piece: a pipe would cut a long console.log short at exit.
+  fs.writeSync(1, SYSTEM + "\n\n" + user + "\n");
   console.error(
     `\n${people.length} people, ${seats.length} seats, ${user.length} characters. Nothing was sent.`,
   );
