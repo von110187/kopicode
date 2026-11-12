@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { catalogue } from "~/data/catalogue";
+import { createFigureKit, type FigureKit } from "~/three/figure-kit";
 import cityCss from "~/styles/city.css?url";
 
 export const Route = createFileRoute("/city")({
@@ -15,6 +16,8 @@ declare global {
   interface Window {
     GTECH_CATALOGUE?: typeof catalogue;
     GTECH_DISTRICT_IDS?: string[];
+    GTECH_FIGURES?: FigureKit;
+    THREE?: unknown;
   }
 }
 
@@ -42,6 +45,8 @@ function City() {
     (async () => {
       await load("vendor/three.min.js");
       await load("vendor/OrbitControls.js");
+      // The figure kit, made against the page's own three.js, for people.js to draw people with.
+      window.GTECH_FIGURES = createFigureKit(window.THREE as Parameters<typeof createFigureKit>[0]);
       await load("districts/index.js");
       for (const id of window.GTECH_DISTRICT_IDS ?? [])
         await load(`districts/${id}.js`);

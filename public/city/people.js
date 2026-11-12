@@ -516,6 +516,10 @@ window.GTECH_PEOPLE = (function () {
   }
 
   function figure(p) {
+    // The page's figure kit, where it has one: a fuller figure drawn from a
+    // seeded look, still saying the person's strongest trait (what they wear)
+    // and their second (their build).
+    if (window.GTECH_FIGURES) return kitFigure(p);
     var g = new THREE.Group();
     var c = new THREE.Color().setHSL(
       ((p.first.hue + p.hueShift + 360) % 360) / 360,
@@ -623,6 +627,29 @@ window.GTECH_PEOPLE = (function () {
       g.add(put(shield, 0.75, 1.1, 0.65));
     }
     g.scale.setScalar(1.25 * p.height);
+    g.userData.person = p;
+    return g;
+  }
+
+  function kitFigure(p) {
+    var kit = window.GTECH_FIGURES;
+    var first = p.first.key;
+    var fix = {
+      skin: p.skin,
+      height: 1,
+      build: { builder: 1.15, thinker: 0.92, connector: 1, guardian: 1.08 }[p.second.key],
+      glasses: first === "thinker",
+      headset: first === "connector",
+      badge: first === "guardian",
+    };
+    if (first !== "builder")
+      fix.outfitColor = new THREE.Color()
+        .setHSL(((p.first.hue + p.hueShift + 360) % 360) / 360, 0.5, 0.55)
+        .getHex();
+    var g = kit.mesh(
+      kit.randomLook(p.id, { site: first === "builder", office: first === "connector", fix: fix }),
+    );
+    g.scale.setScalar(1.1 * p.height);
     g.userData.person = p;
     return g;
   }

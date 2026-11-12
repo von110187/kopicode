@@ -17,10 +17,14 @@ let cached: ReturnType<typeof build> | undefined;
 function build() {
   const org = mockOrg();
   const values = standInValues(org);
-  return { org, metrics: computeOrg(org, values), members: memberRows(org, values) };
+  const metrics = computeOrg(org, values);
+  return { org, metrics, members: memberRows(org, values, metrics.plans) };
 }
 
+export type Lacking = { skill: string; squads: number; borrowable: number };
+
 export type OrgView = {
+  lacking: Lacking[]; // skills squads lack, most lacking first
   totals: OrgMetrics["totals"];
   level: Level;
   view: View;
@@ -36,7 +40,7 @@ export type OrgView = {
 // The metrics of the groups picked in one grouping, and, when asked, their members.
 // No groups picked means every group in the grouping.
 export const getOrgView = createServerFn({ method: "GET" })
-  .validator((d: OrgSearch) => parseOrgSearch(d))
+  .validator((d: Pick<OrgSearch, "level" | "groups" | "view">) => parseOrgSearch(d))
   .handler(async ({ data }): Promise<OrgView> => {
     cached ??= build();
     const { org, metrics, members } = cached;
@@ -67,7 +71,18 @@ export const getOrgView = createServerFn({ method: "GET" })
               ? m.chapter === id
               : m.guilds.includes(id);
 
+    const lacking = new Map<string, Lacking>();
+    for (const sq of metrics.squads) {
+      for (const skill of sq.missing) {
+        const l = lacking.get(skill) ?? { skill, squads: 0, borrowable: 0 };
+        l.squads++;
+        if (sq.borrow.some((b) => b.skill === skill)) l.borrowable++;
+        lacking.set(skill, l);
+      }
+    }
+
     return {
+      lacking: [...lacking.values()].sort((a, b) => b.squads - a.squads),
       totals: metrics.totals,
       level,
       view,
@@ -88,7 +103,7 @@ export const getOrgView = createServerFn({ method: "GET" })
             )
           : [],
       members:
-        view === "members"
+        view !== "metrics"
           ? members.filter((m) => !picked.size || [...picked].some((id) => inGroup(m, id)))
           : [],
       names: {

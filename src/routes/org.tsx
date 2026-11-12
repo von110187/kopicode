@@ -2,6 +2,7 @@ import {
   IconAddressBook,
   IconBriefcase,
   IconBuildingSkyscraper,
+  IconCube3dSphere,
   IconHierarchy2,
   IconLayoutGrid,
   IconSparkles,
@@ -9,18 +10,24 @@ import {
   IconUsersGroup,
 } from "@tabler/icons-react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Nav } from "~/components/Nav";
+import type { Placed, SceneGroup } from "~/components/OrgScene";
 import { FloatingDock } from "~/components/ui/floating-dock";
-import type { GroupMetrics } from "~/org/metrics";
-import { type Level, type OrgSearch, parseOrgSearch } from "~/org/search";
+import type { GroupMetrics, MemberRow } from "~/org/metrics";
+import { type Level, type OrgSearch, parseOrgSearch, type View } from "~/org/search";
+import { FAMILIES, SKILLS, skillName } from "~/org/skills";
 import { getOrgView, type OrgView } from "~/server/org";
 import appCss from "~/styles/app.css?url";
 import twCss from "~/styles/tw.css?url";
 
+// three.js is only loaded when the 3D view is opened, and only in the browser.
+const OrgScene = lazy(() => import("~/components/OrgScene").then((m) => ({ default: m.OrgScene })));
+
 export const Route = createFileRoute("/org")({
   validateSearch: parseOrgSearch,
-  loaderDeps: ({ search }) => search,
+  // Filters work on what is already loaded; only the grouping, groups and view refetch.
+  loaderDeps: ({ search: { level, groups, view } }) => ({ level, groups, view }),
   loader: ({ deps }) => getOrgView({ data: deps }),
   head: () => ({
     meta: [{ title: "GTech City · Organisation" }],
@@ -48,18 +55,54 @@ const LEVEL_SAYS: Record<Level, string> = {
   chapter: "One department's people inside one tribe.",
   guild: "An interest community anyone can join, across tribes.",
 };
+const VIEW_NAMES: Record<View, string> = { metrics: "Metrics", members: "Members", "3d": "3D" };
+const STATUS_NAMES: Record<string, string> = {
+  "": "Everyone",
+  borderline: "Borderline behaviour or proof",
+  overloaded: "Over 100% allocated",
+  spare: "Has time to give (≤ 80%)",
+  "fills-gap": "Could fill a lacking skill",
+};
+const DEPT_NAMES: Record<string, string> = {
+  "": "All departments",
+  "sales-marketing": "Sales & Marketing",
+  engineering: "Development & Engineering",
+  product: "Product",
+  finance: "Finance & Accounting",
+  hr: "Human Resource",
+};
 const COMMS = ["Meetings", "Chat", "Written", "Calls"];
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 const icon = "h-full w-full";
 
 function useGo() {
   const navigate = useNavigate({ from: Route.fullPath });
-  return (s: Partial<OrgSearch>) =>
-    navigate({ search: (prev) => ({ ...prev, ...s }) });
+  return (s: Partial<OrgSearch>) => navigate({ search: (prev) => ({ ...prev, ...s }) });
+}
+
+// Who the people filters let through.
+function useMatch(search: OrgSearch, lacking: Data["lacking"]) {
+  const { dept, family, skill, tag, status } = search;
+  return useMemo(() => {
+    const gap = new Set(lacking.map((l) => l.skill));
+    return (m: MemberRow) =>
+      (!dept || m.department === dept) &&
+      (!family || m.families.includes(family)) &&
+      (!skill || (m.skills ?? []).includes(skill)) &&
+      (!tag || m.tags.includes(tag)) &&
+      (status === "" ||
+        (status === "borderline" && m.borderline) ||
+        (status === "overloaded" && m.load > 1) ||
+        (status === "spare" && m.load <= 0.8) ||
+        (status === "fills-gap" &&
+          (m.skills ?? []).some((s) => gap.has(s)) &&
+          (m.load <= 0.8 || m.borderline)));
+  }, [dept, family, skill, tag, status, lacking]);
 }
 
 function OrgPage() {
   const data = Route.useLoaderData();
+  const search = Route.useSearch();
   const go = useGo();
   const { level, view, totals } = data;
 
@@ -73,14 +116,20 @@ function OrgPage() {
         chapter: <IconHierarchy2 className={icon} />,
         guild: <IconSparkles className={icon} />,
       }[l],
-      active: level === l && view === "metrics",
-      onClick: () => go({ level: l, groups: [], view: "metrics" }),
+      active: level === l,
+      onClick: () => go({ level: l, groups: [] }),
     })),
     {
       title: "Members",
       icon: <IconAddressBook className={icon} />,
       active: view === "members",
       onClick: () => go({ view: "members" }),
+    },
+    {
+      title: "3D people",
+      icon: <IconCube3dSphere className={icon} />,
+      active: view === "3d",
+      onClick: () => go({ view: "3d" }),
     },
     { title: "Catalogue", icon: <IconLayoutGrid className={icon} />, href: "/" },
     { title: "3D city", icon: <IconBuildingSkyscraper className={icon} />, href: "/city" },
@@ -92,15 +141,15 @@ function OrgPage() {
       <div className="tiles">
         {[
           [totals.people, "people"],
-          [totals.tribes, "tribes"],
-          [totals.squads, "squads"],
-          [totals.chapters, "chapters"],
-          [totals.guilds, "guilds"],
+          [`${totals.tribes} · ${totals.squads}`, "tribes · squads"],
+          [pct(totals.utilisation), "utilisation"],
+          [totals.spareFte, "FTE free to borrow"],
           [pct(totals.coverage), "skill coverage"],
+          [`${totals.borrowable} / ${totals.gaps}`, "lacking skills borrowable"],
+          [`${totals.borderline} (${pct(totals.borderline / totals.people)})`, "borderline people"],
           [pct(totals.proven), "scores with proof"],
           [pct(totals.impact), "impact vs intention"],
           [totals.overloaded, "people over 100%"],
-          [totals.bottlenecks, "bottlenecks"],
         ].map(([v, l]) => (
           <div key={l}>
             <b>{v}</b>
@@ -116,27 +165,25 @@ function OrgPage() {
             <p className="sub">{LEVEL_SAYS[level]}</p>
           </div>
           <div className="seg" role="group" aria-label="View">
-            {(["metrics", "members"] as const).map((v) => (
-              <button
-                key={v}
-                aria-pressed={view === v}
-                onClick={() => go({ view: v })}
-              >
-                {v === "metrics" ? "Metrics" : "Members"}
+            {(Object.keys(VIEW_NAMES) as View[]).map((v) => (
+              <button key={v} aria-pressed={view === v} onClick={() => go({ view: v })}>
+                {VIEW_NAMES[v]}
               </button>
             ))}
           </div>
         </div>
         <Picker data={data} />
+        {view !== "metrics" && <Filters search={search} />}
       </section>
 
-      {view === "metrics" ? <Metrics data={data} /> : <Members data={data} />}
+      {view === "metrics" && <Metrics data={data} />}
+      {view === "members" && <Members data={data} search={search} />}
+      {view === "3d" && <Scene data={data} search={search} />}
 
       <p className="note">
-        The organisation is dummy data. People's values (skills, communication
-        preference, scores and their proof) come from a stand-in for the person
-        module, which is built separately; the metrics recompute from whatever
-        values it supplies.
+        The organisation is dummy data. People's values (skills, tags, communication preference,
+        scores and their proof) come from a stand-in for the person module, which is built
+        separately; the metrics recompute from whatever values it supplies.
       </p>
 
       <div className="fixed inset-x-0 bottom-4 z-50 flex justify-center">
@@ -160,9 +207,7 @@ function Picker({ data }: { data: Data }) {
     else next.add(id);
     go({ groups: [...next] });
   };
-  const shown = data.options.filter((o) =>
-    o.name.toLowerCase().includes(q.trim().toLowerCase()),
-  );
+  const shown = data.options.filter((o) => o.name.toLowerCase().includes(q.trim().toLowerCase()));
   return (
     <div className="picker">
       <div className="picker-bar">
@@ -197,6 +242,86 @@ function Picker({ data }: { data: Data }) {
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+// Dropdowns on people: department, then skill family → skill → tag, then status.
+function Filters({ search }: { search: OrgSearch }) {
+  const go = useGo();
+  const family = FAMILIES.find((f) => f.id === search.family);
+  const skill = SKILLS.find((s) => s.id === search.skill);
+  const any = search.dept || search.family || search.status;
+  return (
+    <div className="filters">
+      <label>
+        <span>Department</span>
+        <select value={search.dept} onChange={(e) => go({ dept: e.target.value as OrgSearch["dept"] })}>
+          {Object.entries(DEPT_NAMES).map(([id, name]) => (
+            <option key={id} value={id}>
+              {name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        <span>Skill family</span>
+        <select
+          value={search.family}
+          onChange={(e) => go({ family: e.target.value, skill: "", tag: "" })}
+        >
+          <option value="">All families</option>
+          {FAMILIES.map((f) => (
+            <option key={f.id} value={f.id}>
+              {f.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      {family && (
+        <label>
+          <span>Skill</span>
+          <select value={search.skill} onChange={(e) => go({ skill: e.target.value, tag: "" })}>
+            <option value="">Any {family.name.toLowerCase()} skill</option>
+            {family.skills.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {skill && (
+        <label>
+          <span>Tag</span>
+          <select value={search.tag} onChange={(e) => go({ tag: e.target.value })}>
+            <option value="">Any tag</option>
+            {skill.tags.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      <label>
+        <span>Status</span>
+        <select value={search.status} onChange={(e) => go({ status: e.target.value as OrgSearch["status"] })}>
+          {Object.entries(STATUS_NAMES).map(([id, name]) => (
+            <option key={id} value={id}>
+              {name}
+            </option>
+          ))}
+        </select>
+      </label>
+      {any && (
+        <button
+          className="link"
+          onClick={() => go({ dept: "", family: "", skill: "", tag: "", status: "" })}
+        >
+          Clear filters
+        </button>
+      )}
     </div>
   );
 }
@@ -237,6 +362,8 @@ function Legend() {
   );
 }
 
+const skills = (ids: string[]) => ids.map(skillName).join(", ");
+
 // The metrics every group has, whatever its grouping.
 function GroupFacts({ g }: { g: GroupMetrics & { impact: number } }) {
   return (
@@ -272,6 +399,29 @@ function GroupFacts({ g }: { g: GroupMetrics & { impact: number } }) {
   );
 }
 
+function Lacking({ data }: { data: Data }) {
+  return (
+    <section className="panel">
+      <h2>Lacking across the organisation</h2>
+      <p className="sub">
+        Skills squads need and nobody in them has. Borrowable: someone elsewhere has it and has time
+        to give. The rest need hiring, or retraining borderline people into them.
+      </p>
+      <div className="lack-grid">
+        {data.lacking.slice(0, 18).map((l) => (
+          <div key={l.skill}>
+            <b>{skillName(l.skill)}</b>
+            <span>
+              {l.squads} squads · {l.borrowable} borrowable
+              {l.squads - l.borrowable > 0 && ` · ${l.squads - l.borrowable} hire or retrain`}
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function Metrics({ data }: { data: Data }) {
   const go = useGo();
   const tribeIds = Object.keys(data.names.tribe);
@@ -282,6 +432,7 @@ function Metrics({ data }: { data: Data }) {
 
   return (
     <>
+      <Lacking data={data} />
       <Legend />
       {data.level === "department" && (
         <div className="grid wide">
@@ -317,9 +468,9 @@ function Metrics({ data }: { data: Data }) {
               {d.lacking.length > 0 && (
                 <p className="lacking">
                   Lacking:{" "}
-                  {d.lacking.slice(0, 4).map((l) => (
+                  {d.lacking.slice(0, 5).map((l) => (
                     <span key={l.skill}>
-                      {l.skill} <b>×{l.squads}</b>
+                      {skillName(l.skill)} <b>×{l.squads}</b>
                     </span>
                   ))}
                 </p>
@@ -333,6 +484,7 @@ function Metrics({ data }: { data: Data }) {
                   Its chapters
                 </button>
                 <button onClick={() => go({ groups: [d.id], view: "members" })}>Members</button>
+                <button onClick={() => go({ groups: [d.id], view: "3d" })}>In 3D</button>
               </div>
             </article>
           ))}
@@ -351,13 +503,14 @@ function Metrics({ data }: { data: Data }) {
                 <p className="lacking">
                   Lacking:{" "}
                   {r.missing.map((m) => (
-                    <span key={m}>{m}</span>
+                    <span key={m}>{skillName(m)}</span>
                   ))}
                 </p>
               )}
               <p className="sub">
                 {r.bottlenecks} bottlenecks across its squads
-                {r.singlePoints.length > 0 && `; only one person has ${r.singlePoints.slice(0, 3).join(", ")}`}
+                {r.singlePoints.length > 0 &&
+                  `; only one person has ${skills(r.singlePoints.slice(0, 3))}`}
               </p>
               <div className="actions">
                 {data.level === "tribe" && (
@@ -375,6 +528,7 @@ function Metrics({ data }: { data: Data }) {
                   </button>
                 )}
                 <button onClick={() => go({ groups: [r.id], view: "members" })}>Members</button>
+                <button onClick={() => go({ groups: [r.id], view: "3d" })}>In 3D</button>
               </div>
             </article>
           ))}
@@ -392,7 +546,7 @@ function Metrics({ data }: { data: Data }) {
                 <th>Comms</th>
                 <th className="n">Proof</th>
                 <th>Impact</th>
-                <th>Bottlenecks · required</th>
+                <th>Bottlenecks · borrow from other groups</th>
                 <th />
               </tr>
             </thead>
@@ -412,7 +566,7 @@ function Metrics({ data }: { data: Data }) {
                   </td>
                   <td>
                     <Bar value={s.coverage} />
-                    {s.missing.length > 0 && <small>no {s.missing.join(", ")}</small>}
+                    {s.missing.length > 0 && <small>no {skills(s.missing)}</small>}
                   </td>
                   <td>
                     <CommsBar comms={s.comms} />
@@ -431,8 +585,19 @@ function Metrics({ data }: { data: Data }) {
                         {b}
                       </small>
                     ))}
-                    {s.required.length > 0 && (
-                      <small className="req">Required: {s.required.join(" · ")}</small>
+                    {s.borrow.map((b) => (
+                      <small key={b.skill} className="borrow">
+                        {skillName(b.skill)} ←{" "}
+                        {b.people
+                          .map(
+                            (c) =>
+                              `${c.person} (${data.names.squad[c.squad]}${c.tribe !== s.tribe ? `, ${data.names.tribe[c.tribe]}` : ""}, ${pct(c.spare)} free)`,
+                          )
+                          .join("; ")}
+                      </small>
+                    ))}
+                    {s.hire.length > 0 && (
+                      <small className="req">Hire or retrain: {skills(s.hire)}</small>
                     )}
                   </td>
                   <td>
@@ -450,91 +615,235 @@ function Metrics({ data }: { data: Data }) {
   );
 }
 
+function planText(m: MemberRow, names: Data["names"]) {
+  const p = m.plan;
+  if (!p) return null;
+  return p.action === "reallocate"
+    ? `Reallocate to ${names.squad[p.squad!]} (${names.tribe[names.squadTribe[p.squad!]]})`
+    : `Retrain in ${skillName(p.skill)}`;
+}
+
+// The borderline people, and what the plans say to do with them.
+function Borderline({ data, search }: { data: Data; search: OrgSearch }) {
+  const go = useGo();
+  const b = data.members.filter((m) => m.borderline);
+  const moves = b.filter((m) => m.plan?.action === "reallocate").length;
+  const retrain = b.filter((m) => m.plan?.action === "retrain").length;
+  return (
+    <section className="panel border-panel">
+      <div>
+        <b>
+          {b.length} borderline people ({pct(b.length / (data.members.length || 1))} of{" "}
+          {data.picked.length ? "the groups picked" : "the organisation"})
+        </b>
+        <span className="sub">
+          Low behaviour scores, or little social or productivity proof behind them. {moves} to reallocate
+          where a skill they have is lacking and the squad works the way they do; {retrain} to
+          retrain into a skill nobody can be borrowed for, close to what they know. Each has a mentor from their chapter to help build proof.
+        </span>
+      </div>
+      {search.status !== "borderline" && (
+        <button onClick={() => go({ status: "borderline" })}>Show only them</button>
+      )}
+    </section>
+  );
+}
+
 const PAGE = 100;
 
-// Everyone in the picked groups, with where they sit and what the metrics read of them.
-function Members({ data }: { data: Data }) {
+// Everyone in the picked groups who passes the filters.
+function Members({ data, search }: { data: Data; search: OrgSearch }) {
   const [q, setQ] = useState("");
-  const [overloadedOnly, setOverloadedOnly] = useState(false);
   const [limit, setLimit] = useState(PAGE);
   const { names } = data;
+  const match = useMatch(search, data.lacking);
 
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return data.members.filter(
       (m) =>
-        (!overloadedOnly || m.load > 1) &&
+        match(m) &&
         (!needle ||
           m.person.includes(needle) ||
-          m.skills?.some((s) => s.includes(needle)) ||
+          m.tags.some((t) => t.toLowerCase().includes(needle)) ||
+          m.skills?.some((s) => skillName(s).toLowerCase().includes(needle)) ||
           m.squads.some((s) => names.squad[s].toLowerCase().includes(needle))),
     );
-  }, [data.members, q, overloadedOnly, names]);
+  }, [data.members, q, match, names]);
 
   return (
-    <section className="panel">
-      <div className="picker-bar">
-        <input
-          type="search"
-          placeholder="Find by person, skill or squad"
-          value={q}
-          onChange={(e) => {
-            setQ(e.target.value);
-            setLimit(PAGE);
-          }}
-        />
-        <label className="sub">
+    <>
+      <Borderline data={data} search={search} />
+      <section className="panel">
+        <div className="picker-bar">
           <input
-            type="checkbox"
-            checked={overloadedOnly}
-            onChange={(e) => setOverloadedOnly(e.target.checked)}
-          />{" "}
-          Over 100% only
-        </label>
-        <span className="sub">
-          {rows.length} of {data.members.length} members
-        </span>
-      </div>
-      <div className="scroll">
-        <table className="squads">
-          <thead>
-            <tr>
-              <th>Person</th>
-              <th>Department</th>
-              <th>Tribe · squad</th>
-              <th className="n">Load</th>
-              <th>Comms</th>
-              <th>Skills</th>
-              <th className="n">Proof</th>
-              <th className="n">Proven score</th>
-              <th>Guilds</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.slice(0, limit).map((m) => (
-              <tr key={m.person} className={m.load > 1 ? "hot" : ""}>
-                <td>{m.person}</td>
-                <td>{names.department[m.department]}</td>
-                <td>
-                  {m.tribes.map((t) => names.tribe[t]).join(", ")}
-                  <small>{m.squads.map((s) => names.squad[s]).join(", ")}</small>
-                </td>
-                <td className="n">{pct(m.load)}</td>
-                <td>{m.comms ?? <small>no values</small>}</td>
-                <td>{m.skills?.join(", ") ?? <small>no values</small>}</td>
-                <td className="n">{m.proven == null ? "—" : pct(m.proven)}</td>
-                <td className="n">{m.provenScore == null ? "—" : m.provenScore.toFixed(2)}</td>
-                <td>{m.guilds.map((g) => names.guild[g]).join(", ")}</td>
+            type="search"
+            placeholder="Find by person, skill, tag or squad"
+            value={q}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setLimit(PAGE);
+            }}
+          />
+          <span className="sub">
+            {rows.length} of {data.members.length} members
+          </span>
+        </div>
+        <div className="scroll">
+          <table className="squads">
+            <thead>
+              <tr>
+                <th>Person</th>
+                <th>Department</th>
+                <th>Tribe · squad</th>
+                <th className="n">Load</th>
+                <th>Comms</th>
+                <th>Skills · tags</th>
+                <th className="n">Proof</th>
+                <th className="n">Score</th>
+                <th>Plan</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {rows.length > limit && (
-        <button className="more" onClick={() => setLimit(limit + PAGE)}>
-          Show {Math.min(PAGE, rows.length - limit)} more
-        </button>
-      )}
-    </section>
+            </thead>
+            <tbody>
+              {rows.slice(0, limit).map((m) => (
+                <tr key={m.person} className={m.borderline ? "warn" : m.load > 1 ? "hot" : ""}>
+                  <td>{m.person}</td>
+                  <td>{names.department[m.department]}</td>
+                  <td>
+                    {m.tribes.map((t) => names.tribe[t]).join(", ")}
+                    <small>{m.squads.map((s) => names.squad[s]).join(", ")}</small>
+                  </td>
+                  <td className="n">{pct(m.load)}</td>
+                  <td>{m.comms ?? <small>no values</small>}</td>
+                  <td>
+                    {m.skills ? skills(m.skills) : <small>no values</small>}
+                    {m.tags.length > 0 && <small>{m.tags.join(", ")}</small>}
+                  </td>
+                  <td className="n">{m.proven == null ? "—" : pct(m.proven)}</td>
+                  <td className="n">{m.meanScore == null ? "—" : m.meanScore.toFixed(2)}</td>
+                  <td>
+                    {m.plan ? (
+                      <>
+                        {planText(m, names)}
+                        <small>
+                          {m.plan.reason}
+                          {m.plan.mentor && ` · mentor ${m.plan.mentor}`}
+                        </small>
+                      </>
+                    ) : (
+                      ""
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {rows.length > limit && (
+          <button className="more" onClick={() => setLimit(limit + PAGE)}>
+            Show {Math.min(PAGE, rows.length - limit)} more
+          </button>
+        )}
+      </section>
+    </>
+  );
+}
+
+// The picked groups in 3D, their people on them, the filters greying out the rest.
+function Scene({ data, search }: { data: Data; search: OrgSearch }) {
+  const match = useMatch(search, data.lacking);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [client, setClient] = useState(false);
+  useEffect(() => setClient(true), []);
+  const { names } = data;
+
+  const { people, groups } = useMemo(() => {
+    const shown = data.picked.length ? data.options.filter((o) => data.picked.includes(o.id)) : data.options;
+    const ids = new Set(shown.map((o) => o.id));
+    const groupOf = (m: MemberRow) =>
+      data.level === "department"
+        ? m.department
+        : data.level === "tribe"
+          ? m.tribes[0]
+          : data.level === "squad"
+            ? m.squads.find((s) => ids.has(s))
+            : data.level === "chapter"
+              ? m.chapter
+              : m.guilds.find((g) => ids.has(g));
+    const people: Placed[] = [];
+    for (const row of data.members) {
+      const group = groupOf(row);
+      if (group && ids.has(group)) people.push({ row, group });
+    }
+    const groups: SceneGroup[] = shown.map((o, k) => ({ id: o.id, name: o.name, hue: (k * 47 + 20) % 360 }));
+    return { people, groups };
+  }, [data]);
+
+  const person = selected ? data.members.find((m) => m.person === selected) : undefined;
+  const count = people.filter((p) => match(p.row)).length;
+
+  return (
+    <>
+      <Borderline data={data} search={search} />
+      <section className="scene-wrap">
+        {client ? (
+          <Suspense fallback={<div className="scene loading">Loading 3D…</div>}>
+            <OrgScene people={people} groups={groups} match={match} selected={selected} onPick={setSelected} />
+          </Suspense>
+        ) : (
+          <div className="scene loading">Loading 3D…</div>
+        )}
+        <div className="scene-key">
+          <b>{count}</b> of {people.length} people match ·{" "}
+          <span className="k-amber">◆</span> borderline · <span className="k-red">◯</span> over 100% ·
+          drag to orbit, scroll to zoom, click a person
+        </div>
+        {person && (
+          <aside className="person-card">
+            <button className="link close" onClick={() => setSelected(null)} aria-label="Close">
+              ×
+            </button>
+            <h3>{person.person}</h3>
+            <p className="sub">
+              {names.department[person.department]} · {person.tribes.map((t) => names.tribe[t]).join(", ")}
+            </p>
+            <dl className="kv">
+              <dt>Squads</dt>
+              <dd>{person.squads.map((s) => names.squad[s]).join(", ")}</dd>
+              <dt>Load</dt>
+              <dd>{pct(person.load)}</dd>
+              <dt>Skills</dt>
+              <dd>{person.skills ? skills(person.skills) : "no values"}</dd>
+              {person.tags.length > 0 && (
+                <>
+                  <dt>Tags</dt>
+                  <dd>{person.tags.join(", ")}</dd>
+                </>
+              )}
+              <dt>Comms</dt>
+              <dd>{person.comms ?? "—"}</dd>
+              <dt>Score</dt>
+              <dd>
+                {person.meanScore == null ? "—" : person.meanScore.toFixed(2)} ·{" "}
+                {person.proven == null ? "—" : pct(person.proven)} with proof
+              </dd>
+              {person.guilds.length > 0 && (
+                <>
+                  <dt>Guilds</dt>
+                  <dd>{person.guilds.map((g) => names.guild[g]).join(", ")}</dd>
+                </>
+              )}
+            </dl>
+            {person.plan && (
+              <div className="plan">
+                <b>{planText(person, names)}</b>
+                <span>{person.plan.reason}</span>
+                {person.plan.mentor && <span>Mentor: {person.plan.mentor}</span>}
+              </div>
+            )}
+          </aside>
+        )}
+      </section>
+    </>
   );
 }

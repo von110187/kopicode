@@ -395,3 +395,139 @@ button.link {
 .panel.scroll {
   padding: 4px 14px 10px;
 }
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #eee7da;
+}
+.filters label {
+  display: grid;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.filters select {
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 5px 8px;
+  background: #fff;
+  max-width: 100%;
+}
+.lack-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+.lack-grid div {
+  background: var(--warn);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+.lack-grid b {
+  display: block;
+  font-size: 13px;
+}
+.lack-grid span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.border-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: #fbf0d9;
+  border-color: #ecd29a;
+}
+.border-panel > div {
+  display: grid;
+  gap: 2px;
+  max-width: 80ch;
+}
+small.borrow {
+  color: #2f5d3a;
+}
+tr.warn td:first-child {
+  box-shadow: inset 3px 0 0 #e0a020;
+  padding-left: 8px;
+}
+.scene-wrap {
+  position: relative;
+  margin: 16px 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fbf6ee;
+}
+.scene {
+  width: 100%;
+  height: min(70vh, 640px);
+  min-height: 360px;
+}
+.scene.loading {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+.scene-key {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  font-size: 12px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 5px 10px;
+  width: fit-content;
+  max-width: calc(100% - 20px);
+}
+.k-amber {
+  color: #e0a020;
+}
+.k-red {
+  color: #d9534f;
+  font-weight: 700;
+}
+.person-card {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: min(300px, calc(100% - 20px));
+  max-height: calc(100% - 60px);
+  overflow: auto;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+.person-card h3 {
+  margin: 0;
+}
+.person-card .sub {
+  margin: 0 0 6px;
+}
+.person-card .close {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  font-size: 18px;
+  text-decoration: none;
+}
+.plan {
+  display: grid;
+  gap: 2px;
+  background: #fbf0d9;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+}

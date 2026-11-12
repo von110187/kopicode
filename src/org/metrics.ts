@@ -1,6 +1,7 @@
 // Group metrics, recomputed from the org and from each person's values.
 // The person module owns those values; this file only reads them, through
 // `ValuesOf`, and rolls them up to squads, tribes and departments.
+import { familyOf, skillName } from "./skills";
 import type { DepartmentId, Intention, Membership, Org } from "./types";
 
 export type Evidence = { kind: "social" | "productivity"; says: string };
@@ -8,6 +9,7 @@ export type Evidence = { kind: "social" | "productivity"; says: string };
 // The values the metrics read about one person, as the person module supplies them.
 export type PersonValues = {
   skills: string[];
+  tags?: string[]; // narrow a skill down, e.g. DevOps → AWS
   comms: string;
   scores: { name: string; value: number; evidence: Evidence[] }[];
 };
@@ -39,6 +41,25 @@ export type SquadMetrics = GroupMetrics & {
   understaffed: boolean;
   bottlenecks: string[];
   required: string[];
+  // For each skill it lacks: people elsewhere who have it and have time to give.
+  borrow: { skill: string; people: Candidate[] }[];
+  hire: string[]; // lacking skills nobody with time has: hire or retrain
+};
+
+export type Candidate = { person: string; squad: string; tribe: string; spare: number };
+
+// A person is borderline when their scores are low or little proof stands behind them.
+export const BORDERLINE = { score: 0.5, proof: 0.4 };
+
+// What to do about one borderline person: move them where a skill they have is
+// lacking, or retrain them into a lacking skill close to one they have. Either
+// way, a mentor from their chapter helps build proof.
+export type Plan = {
+  action: "reallocate" | "retrain";
+  skill: string;
+  squad?: string; // where to move them, or where the retrained skill is lacking
+  reason: string;
+  mentor?: string;
 };
 
 export type RollUp = GroupMetrics & {
@@ -157,14 +178,14 @@ export function computeOrg(org: Org, valuesOf: ValuesOf) {
     const g = measure(members, it.needs, valuesOf, load);
     const understaffed = g.fte < sq.minSize * 0.75;
     const bottlenecks = [
-      ...g.singlePoints.map((s) => `Only one person has ${s}`),
+      ...g.singlePoints.map((s) => `Only one person has ${skillName(s)}`),
       ...(g.overloaded ? [`${g.overloaded} member(s) allocated over 100%`] : []),
       ...(understaffed ? [`${g.fte} FTE against ${sq.minSize} needed`] : []),
       ...(g.headcount && g.commsFit < 0.4 ? ["No shared way of communicating"] : []),
     ];
     const required = [
-      ...g.missing.map((s) => `Add ${s}`),
-      ...g.singlePoints.map((s) => `Back up ${s}`),
+      ...g.missing.map((s) => `Add ${skillName(s)}`),
+      ...g.singlePoints.map((s) => `Back up ${skillName(s)}`),
       ...(understaffed ? [`${Math.ceil(sq.minSize - g.fte)} more FTE`] : []),
     ];
     return {
@@ -178,8 +199,34 @@ export function computeOrg(org: Org, valuesOf: ValuesOf) {
       understaffed,
       bottlenecks,
       required,
+      borrow: [],
+      hire: [],
     };
   });
+
+  // Who has time to give, and what they can do: the pool for borrowing across groups.
+  const squadTribe = new Map(org.squads.map((s) => [s.id, s.tribe]));
+  const homeSquad = new Map<string, string>();
+  for (const m of org.memberships) if (!homeSquad.has(m.person)) homeSquad.set(m.person, m.squad);
+  const spareBySkill = new Map<string, Candidate[]>();
+  for (const [person, l] of load) {
+    const v = valuesOf(person);
+    if (!v || l > 0.8 || isBorderline(v)) continue;
+    const squad = homeSquad.get(person)!;
+    const c = { person, squad, tribe: squadTribe.get(squad)!, spare: Math.round((1 - l) * 100) / 100 };
+    for (const s of new Set(v.skills)) spareBySkill.set(s, [...(spareBySkill.get(s) ?? []), c]);
+  }
+  for (const sq of squads) {
+    for (const skill of sq.missing) {
+      const people = (spareBySkill.get(skill) ?? [])
+        .filter((c) => c.squad !== sq.id)
+        // Most time first; between equals, someone from another tribe spreads the load.
+        .sort((a, b) => b.spare - a.spare || Number(b.tribe !== sq.tribe) - Number(a.tribe !== sq.tribe))
+        .slice(0, 3);
+      if (people.length) sq.borrow.push({ skill, people });
+      else sq.hire.push(skill);
+    }
+  }
 
   const tribes = org.tribes.map((t) =>
     rollUp(
@@ -259,8 +306,16 @@ export function computeOrg(org: Org, valuesOf: ValuesOf) {
   });
 
   const people = new Set(org.memberships.map((m) => m.person));
+  const plans = planBorderline(org, valuesOf, squads);
+  const gaps = squads.reduce((n, s) => n + s.missing.length, 0);
   return {
+    plans,
     totals: {
+      borderline: plans.size,
+      utilisation: [...load.values()].reduce((a, b) => a + Math.min(1, b), 0) / (load.size || 1),
+      spareFte: Math.round([...load.values()].reduce((a, b) => a + Math.max(0, 1 - b), 0)),
+      gaps,
+      borrowable: squads.reduce((n, s) => n + s.borrow.length, 0),
       people: people.size,
       departments: org.departments.length,
       tribes: org.tribes.length,
@@ -281,6 +336,82 @@ export function computeOrg(org: Org, valuesOf: ValuesOf) {
   };
 }
 
+export function isBorderline(v: PersonValues) {
+  if (!v.scores.length) return false;
+  const mean = v.scores.reduce((a, s) => a + s.value, 0) / v.scores.length;
+  const proof = v.scores.filter((s) => s.evidence.length).length / v.scores.length;
+  return mean < BORDERLINE.score || proof < BORDERLINE.proof;
+}
+
+// A plan for every borderline person: reallocate where a skill of theirs is
+// lacking, else retrain into the most lacking skill of a family they know.
+function planBorderline(org: Org, valuesOf: ValuesOf, squads: SquadMetrics[]) {
+  const plans = new Map<string, Plan>();
+  const home = new Map<string, Membership>();
+  for (const m of org.memberships) if (!home.has(m.person)) home.set(m.person, m);
+
+  // Lacking skills, most lacking first, with the squads that lack them.
+  const lacking = new Map<string, SquadMetrics[]>();
+  for (const sq of squads) for (const s of sq.missing) lacking.set(s, [...(lacking.get(s) ?? []), sq]);
+  const demand = [...lacking].sort((a, b) => b[1].length - a[1].length);
+
+  // Mentors: people with strong, proven scores, by chapter.
+  const mentors = new Map<string, { person: string; skills: string[]; score: number }[]>();
+  for (const [person, m] of home) {
+    const v = valuesOf(person);
+    if (!v || isBorderline(v)) continue;
+    const proven = v.scores.filter((s) => s.evidence.length);
+    const score = proven.reduce((a, s) => a + s.value, 0) / (proven.length || 1);
+    if (score < 0.75) continue;
+    mentors.set(m.chapter, [...(mentors.get(m.chapter) ?? []), { person, skills: v.skills, score }]);
+  }
+
+  for (const [person, m] of home) {
+    const v = valuesOf(person);
+    if (!v || !isBorderline(v)) continue;
+    const mentor = (mentors.get(m.chapter) ?? [])
+      .filter((x) => x.skills.some((s) => v.skills.includes(s)))
+      .sort((a, b) => b.score - a.score)[0] ?? (mentors.get(m.chapter) ?? [])[0];
+
+    // Reallocate: a skill they have that another squad lacks, in a squad whose
+    // most common way of communicating is theirs, so the move also fixes fit.
+    const dominant = (sq: SquadMetrics) =>
+      Object.entries(sq.comms).sort((a, b) => b[1] - a[1])[0]?.[0];
+    const move = v.skills
+      .flatMap((skill) => (lacking.get(skill) ?? []).map((sq) => ({ skill, sq })))
+      .filter((x) => x.sq.id !== m.squad && dominant(x.sq) === v.comms)
+      // A gap nobody can be borrowed for first.
+      .sort((a, b) => Number(b.sq.hire.includes(b.skill)) - Number(a.sq.hire.includes(a.skill)))[0];
+    if (move) {
+      plans.set(person, {
+        action: "reallocate",
+        skill: move.skill,
+        squad: move.sq.id,
+        reason: `Has ${skillName(move.skill)}, which ${move.sq.name} lacks`,
+        mentor: mentor?.person,
+      });
+      continue;
+    }
+    // Retrain: into a skill squads lack and cannot borrow, in a family they
+    // already work in where there is one; else the most lacking such skill.
+    const families = new Set(v.skills.map((s) => familyOf(s)?.id));
+    const unborrowable = demand.filter(([s, sqs]) => sqs.some((sq) => sq.hire.includes(s)));
+    const pool = unborrowable.length ? unborrowable : demand;
+    const near = pool.find(([s]) => families.has(familyOf(s)?.id) && !v.skills.includes(s));
+    const any = near ?? pool.find(([s]) => !v.skills.includes(s));
+    if (!any) continue;
+    const [skill, short] = any;
+    plans.set(person, {
+      action: "retrain",
+      skill,
+      squad: short[0].id,
+      reason: `${short.length} squad(s) lack ${skillName(skill)}${near ? `, close to their ${skillName(v.skills.find((s) => familyOf(s)?.id === familyOf(skill)?.id) ?? v.skills[0])}` : ""}`,
+      mentor: mentor?.person,
+    });
+  }
+  return plans;
+}
+
 export type MemberRow = {
   person: string;
   department: DepartmentId;
@@ -291,13 +422,22 @@ export type MemberRow = {
   load: number;
   // What the metrics read from the person module; null where it has no values.
   skills: string[] | null;
+  tags: string[];
+  families: string[];
   comms: string | null;
   proven: number | null; // share of the person's scores that carry proof
   provenScore: number | null; // mean of their proven scores
+  meanScore: number | null; // mean of all their scores, proven or not
+  borderline: boolean;
+  plan: Plan | null;
 };
 
 // Everyone in the org, one row a person, with where they sit and what the metrics read of them.
-export function memberRows(org: Org, valuesOf: ValuesOf): MemberRow[] {
+export function memberRows(
+  org: Org,
+  valuesOf: ValuesOf,
+  plans: Map<string, Plan>,
+): MemberRow[] {
   const chapter = new Map(org.chapters.map((c) => [c.id, c]));
   const squad = new Map(org.squads.map((s) => [s.id, s]));
   const guildsOf = new Map<string, string[]>();
@@ -309,6 +449,7 @@ export function memberRows(org: Org, valuesOf: ValuesOf): MemberRow[] {
   return [...byPerson].map(([person, ms]) => {
     const v = valuesOf(person);
     const proven = v?.scores.filter((s) => s.evidence.length) ?? [];
+    const skills = v ? [...new Set(v.skills)] : null;
     return {
       person,
       department: chapter.get(ms[0].chapter)!.department,
@@ -317,12 +458,17 @@ export function memberRows(org: Org, valuesOf: ValuesOf): MemberRow[] {
       chapter: ms[0].chapter,
       guilds: guildsOf.get(person) ?? [],
       load: Math.round(ms.reduce((s, m) => s + m.share, 0) * 100) / 100,
-      skills: v ? [...new Set(v.skills)] : null,
+      skills,
+      tags: v?.tags ?? [],
+      families: [...new Set((skills ?? []).map((s) => familyOf(s)?.id ?? ""))].filter(Boolean),
       comms: v?.comms ?? null,
       proven: v && v.scores.length ? proven.length / v.scores.length : null,
       provenScore: proven.length
         ? proven.reduce((s, x) => s + x.value, 0) / proven.length
         : null,
+      meanScore: v && v.scores.length ? v.scores.reduce((a, s) => a + s.value, 0) / v.scores.length : null,
+      borderline: v ? isBorderline(v) : false,
+      plan: plans.get(person) ?? null,
     };
   });
 }

@@ -76,6 +76,11 @@ npm start            # serve the build
 
 - `/` is the catalogue and its gaps, rendered on the server (`src/routes/index.tsx`, data from `src/server/catalogue.ts`).
 - `/org` is the organisation: about 1000 people in a simplified Spotify model (departments, tribes, squads, chapters, guilds), with group metrics: skill coverage and what is lacking, bottlenecks, communication preferences, proof behind scores, and impact against project and department intentions (`src/org/`). A floating dock (Aceternity UI) picks the grouping; the groups to compare are picked under it, and each can be opened as its metrics or its members. The choice lives in the URL, so a view can be shared.
+  - **3D people**: the picked groups as platforms with their people standing on them. Dropdowns filter by department, skill family → skill → tag (e.g. Software & Cloud → DevOps → GCP; Geotechnical → Geophysics → GPR) and status; who does not match is greyed out.
+  - **Skills** span the whole group, not only software: civil and structural, geotechnical and earth sciences, mechanical, electrical and rail, site and survey, property and valuation, landscape and environment, commercial, sales, product and people (`src/org/skills.ts`).
+  - **Cross-group utilisation**: for each skill a squad lacks, people elsewhere who have it and time to give; skills nobody can be borrowed for are marked to hire or retrain.
+  - **Borderline people** (15% of the mock organisation: low behaviour scores or little proof) each get a plan: reallocate where a skill of theirs is lacking and the squad works the way they do, or retrain into a skill nobody can be borrowed for, with a mentor from their chapter.
+- People in both 3D views are drawn by one figure kit (`src/three/figure-kit.ts`): lathed bodies, textured clothes, and a seeded random look (skin, hair, clothes, build, hard hat and hi-vis for site skills).
 - `/city` is the 3D city (`src/routes/city.tsx`), which loads the three.js viewer in `public/city/`.
 
 The catalogue lives in `src/data/catalogue.ts` and feeds both pages.

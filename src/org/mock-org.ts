@@ -1,7 +1,9 @@
-// A DUMMY organisation of about 1000 people. Every tribe, squad, guild,
+// A DUMMY organisation of about 1000 people, shaped after an engineering,
+// construction, property and digital group. Every tribe, squad, guild,
 // intention, KPI and figure here is invented. People are ids only.
 import { catalogue } from "~/data/catalogue";
 import { seeded } from "./random";
+import { FAMILIES } from "./skills";
 import type {
   Chapter,
   Department,
@@ -13,42 +15,30 @@ import type {
   Tribe,
 } from "./types";
 
+const homeSkills = (d: DepartmentId) =>
+  FAMILIES.filter((f) => f.department === d).flatMap((f) => f.skills.map((s) => s.id));
+
 export const DEPARTMENTS: Department[] = [
-  {
-    id: "sales-marketing",
-    name: "Sales & Marketing",
-    skills: ["sales", "marketing", "partnerships", "bid-writing"],
-  },
-  {
-    id: "engineering",
-    name: "Development & Engineering",
-    skills: ["frontend", "backend", "data-eng", "devops", "qa", "ml", "iot"],
-  },
-  {
-    id: "product",
-    name: "Product",
-    skills: ["product-mgmt", "ux-design", "user-research"],
-  },
-  {
-    id: "finance",
-    name: "Finance & Accounting",
-    skills: ["accounting", "costing", "procurement"],
-  },
-  { id: "hr", name: "Human Resource", skills: ["recruitment", "people-ops", "learning"] },
+  { id: "sales-marketing", name: "Sales & Marketing", skills: homeSkills("sales-marketing") },
+  { id: "engineering", name: "Development & Engineering", skills: homeSkills("engineering") },
+  { id: "product", name: "Product", skills: homeSkills("product") },
+  { id: "finance", name: "Finance & Accounting", skills: homeSkills("finance") },
+  { id: "hr", name: "Human Resource", skills: homeSkills("hr") },
 ];
 
 const DEPARTMENT_INTENTIONS: Intention[] = (
   [
     ["sales-tenders", "sales-marketing", "Win more public-sector tenders", "tenders won", 12, 8, 3],
-    ["sales-arr", "sales-marketing", "Grow recurring product revenue", "RM m recurring revenue", 20, 13, 2],
-    ["eng-ship", "engineering", "Ship small and often, without breaking things", "deploys a week", 40, 31, 2],
-    ["eng-reuse", "engineering", "Build once on the shared platform", "% of products on shared login", 80, 45, 3],
+    ["sales-property", "sales-marketing", "Sell the township launches", "units booked", 1200, 870, 2],
+    ["eng-schedule", "engineering", "Deliver infrastructure packages on schedule", "% of packages on schedule", 90, 71, 3],
+    ["eng-safety", "engineering", "Zero harm on every site", "% of months without a lost-time injury", 100, 92, 3],
+    ["eng-reuse", "engineering", "Build once on the shared digital platform", "% of products on shared login", 80, 45, 2],
     ["product-problems", "product", "Every listed business problem has a project", "problems with a project", 18, 15, 3],
-    ["product-users", "product", "Grow active users", "monthly active users", 5000, 3700, 2],
-    ["finance-cost", "finance", "Keep each product under RM 100 a user a month", "products under the line", 19, 12, 3],
+    ["product-users", "product", "Grow active users of our products", "monthly active users", 5000, 3700, 2],
+    ["finance-cost", "finance", "Keep projects within budget", "% of projects within 5% of budget", 85, 64, 3],
     ["finance-close", "finance", "Close the books on time", "% of months closed on time", 100, 82, 1],
     ["hr-roles", "hr", "Fill critical roles", "critical roles filled", 30, 21, 3],
-    ["hr-retain", "hr", "Keep the people we have", "% retention", 92, 88, 2],
+    ["hr-upskill", "hr", "Retrain people into the skills we lack", "people retrained this year", 150, 64, 2],
   ] as const
 ).map(([id, dept, says, kpi, target, actual, weight]) => ({
   id,
@@ -64,7 +54,7 @@ const DEPARTMENT_INTENTIONS: Intention[] = (
 // Each tribe: its mission, the departments its squads draw from, the skills
 // its squads need, the department intentions it serves and its squads' themes.
 type TribeSpec = Tribe & {
-  area?: "Serve" | "Work" | "Build";
+  areas?: ("Serve" | "Work" | "Build")[]; // catalogue apps of these areas get squads here
   mix: Partial<Record<DepartmentId, number>>;
   needs: string[];
   serves: string[];
@@ -72,103 +62,96 @@ type TribeSpec = Tribe & {
   themes: string[];
 };
 
-const TRIBES: TribeSpec[] = [
+export const TRIBES: TribeSpec[] = [
   {
-    id: "serve",
-    name: "Serve",
-    mission: "Products for authorities and customers",
-    area: "Serve",
-    mix: { engineering: 6, product: 2, "sales-marketing": 1, finance: 0.5 },
-    needs: ["frontend", "backend", "qa", "product-mgmt", "ux-design", "user-research", "sales"],
-    serves: ["product-users", "sales-arr", "product-problems"],
+    id: "digital",
+    name: "Digital Products",
+    mission: "Products for authorities, customers and site teams",
+    areas: ["Serve", "Work"],
+    mix: { engineering: 6, product: 2.5, "sales-marketing": 0.6, finance: 0.4 },
+    needs: ["frontend", "backend", "qa", "devops", "product-mgmt", "ux-design", "user-research", "ml", "security"],
+    serves: ["product-users", "product-problems"],
     kpi: "% of release plan delivered",
-    themes: ["Applicant Journey", "Payments", "Notifications", "Mobile", "Authority Portal", "Accessibility"],
+    themes: ["Applicant Journey", "Mobile", "Payments", "Notifications"],
   },
   {
-    id: "work",
-    name: "Work",
-    mission: "Tools for site and office work",
-    area: "Work",
-    mix: { engineering: 6, product: 2, finance: 0.5, hr: 0.3 },
-    needs: ["frontend", "backend", "data-eng", "qa", "product-mgmt", "ux-design", "ml"],
-    serves: ["product-problems", "product-users", "eng-ship"],
-    kpi: "% of release plan delivered",
-    themes: ["Approvals", "Field Capture", "Search", "Scheduling", "Offline Sync", "Reporting"],
-  },
-  {
-    id: "build",
-    name: "Build",
-    mission: "The shared platform every product stands on",
-    area: "Build",
+    id: "platform",
+    name: "Platform, Data & AI",
+    mission: "The shared cloud, data and models every product stands on",
+    areas: ["Build"],
     mix: { engineering: 8, product: 1 },
-    needs: ["backend", "devops", "qa", "data-eng", "iot", "product-mgmt"],
-    serves: ["eng-reuse", "eng-ship"],
+    needs: ["devops", "backend", "data-eng", "ml", "security", "iot", "qa", "bim"],
+    serves: ["eng-reuse", "product-problems"],
     kpi: "% of products adopting",
-    themes: ["Observability", "CI Pipelines", "Cloud Cost", "Developer Portal", "Secrets", "Edge"],
+    themes: ["Cloud Landing Zone", "Data Platform", "Document AI", "Digital Twin", "Observability", "Computer Vision on Site", "Sensor Network", "Cost of Cloud"],
   },
   {
-    id: "data-ai",
-    name: "Data & AI",
-    mission: "Data and models other squads build on",
-    mix: { engineering: 6, product: 1.5, finance: 0.3 },
-    needs: ["data-eng", "ml", "backend", "product-mgmt", "user-research"],
-    serves: ["product-problems", "eng-reuse"],
-    kpi: "% of model targets met",
-    themes: ["Data Platform", "Document AI", "Forecasting", "Vision", "Assistants", "Data Quality", "Feature Store", "Evaluation"],
+    id: "rail",
+    name: "Rail & Tunnelling",
+    mission: "Underground lines, stations and their systems",
+    mix: { engineering: 7, finance: 1, product: 0.3, hr: 0.2 },
+    needs: ["tunnelling", "geotechnical", "geophysics", "ground-investigation", "vibrations", "fluid-mechanics", "rail-systems", "mechanical-plant", "surveying", "hse", "quantity-surveying", "construction-mgmt"],
+    serves: ["eng-schedule", "eng-safety", "finance-cost"],
+    kpi: "% of drive or package plan",
+    themes: ["TBM Drive North", "TBM Drive South", "Underground Stations", "Tunnel Ventilation", "Ground Movement Monitoring", "Trackwork & Signalling", "Vibration Control", "Cross Passages", "Segment Factory"],
   },
   {
-    id: "growth",
-    name: "Growth",
-    mission: "Find, win and keep customers",
-    mix: { "sales-marketing": 6, product: 1, engineering: 1, finance: 0.5 },
-    needs: ["sales", "marketing", "partnerships", "bid-writing", "costing", "frontend"],
-    serves: ["sales-tenders", "sales-arr"],
-    kpi: "% of pipeline target",
-    themes: ["Public Sector Bids", "Enterprise Sales", "Partnerships", "Brand", "Web & Campaigns", "Customer Success", "Pricing", "Events"],
+    id: "highways",
+    name: "Highways & Bridges",
+    mission: "Expressways, interchanges and bridges",
+    mix: { engineering: 7, finance: 1.2, "sales-marketing": 0.2 },
+    needs: ["highways", "bridges", "structural", "geotechnical", "hydraulics", "surveying", "site-supervision", "quality-control", "hse", "drones", "contracts"],
+    serves: ["eng-schedule", "eng-safety", "finance-cost"],
+    kpi: "% of package plan",
+    themes: ["Expressway Package A", "Expressway Package B", "Interchanges", "Bridge Inspection", "Pavement", "Slope Works", "Traffic Management", "Drainage"],
   },
   {
-    id: "finance-ops",
-    name: "Finance Ops",
-    mission: "Money in, money out, on time",
-    mix: { finance: 6, engineering: 1, "sales-marketing": 0.3 },
-    needs: ["accounting", "costing", "procurement", "data-eng"],
-    serves: ["finance-cost", "finance-close"],
-    kpi: "% of close tasks on time",
-    themes: ["Close", "Billing", "Procurement", "Project Costing", "Treasury", "Audit", "Cost per User"],
+    id: "water",
+    name: "Water & Environment",
+    mission: "Water, sewerage, flood mitigation and reclamation",
+    mix: { engineering: 7, finance: 0.8, "sales-marketing": 0.3 },
+    needs: ["water-treatment", "hydraulics", "fluid-mechanics", "hydrogeology", "eia", "esg", "mep", "power", "site-supervision", "hse"],
+    serves: ["eng-schedule", "eng-safety"],
+    kpi: "% of plant or network plan",
+    themes: ["Water Treatment Plant", "Sewerage Network", "Flood Mitigation", "Dewatering", "Environmental Monitoring", "Coastal Reclamation", "Solar Farm"],
   },
   {
-    id: "people",
-    name: "People",
-    mission: "Hire, grow and keep people",
-    mix: { hr: 6, engineering: 0.6, product: 0.4 },
-    needs: ["recruitment", "people-ops", "learning", "frontend"],
-    serves: ["hr-roles", "hr-retain"],
-    kpi: "% of hiring plan",
-    themes: ["Talent Acquisition", "Onboarding", "Learning", "Rewards", "People Analytics", "Wellbeing", "Graduate Programme"],
+    id: "property",
+    name: "Property & Townships",
+    mission: "Townships planned, built, sold and looked after",
+    mix: { "sales-marketing": 3, engineering: 3, finance: 1, product: 0.4 },
+    needs: ["property-dev", "town-planning", "valuation", "real-estate-sales", "property-mgmt", "landscape-arch", "horticulture", "arboriculture", "mep", "quantity-surveying", "esg"],
+    serves: ["sales-property", "finance-cost"],
+    kpi: "% of launch or handover plan",
+    themes: ["Township Masterplan", "Show Gallery & Sales", "Valuation Desk", "Parks & Landscape", "Estate Management", "Green Building", "Handover & Defects"],
   },
   {
-    id: "site",
-    name: "Site Delivery",
-    mission: "Products in use on construction sites",
-    mix: { engineering: 5, product: 1.5, finance: 1, "sales-marketing": 0.5 },
-    needs: ["iot", "backend", "frontend", "costing", "product-mgmt", "user-research"],
-    serves: ["eng-ship", "finance-cost", "product-users"],
-    kpi: "% of site rollout plan",
-    themes: ["Rollout North", "Rollout South", "Safety", "Handover", "Equipment", "Site Training", "Quality Checks"],
+    id: "corporate",
+    name: "Growth & Corporate",
+    mission: "Win work, and keep money and people in order",
+    mix: { "sales-marketing": 2.5, finance: 3, hr: 2.5, engineering: 0.5 },
+    needs: ["sales", "bid-writing", "partnerships", "marketing", "accounting", "procurement", "tax", "treasury", "costing", "recruitment", "learning", "people-ops", "payroll"],
+    serves: ["sales-tenders", "finance-close", "hr-roles", "hr-upskill"],
+    kpi: "% of plan",
+    themes: ["Public Sector Bids", "Overseas Bids", "Partnerships & JV", "Brand & Digital", "Group Finance Close", "Procurement", "Tax & Treasury", "Talent Acquisition", "Learning Academy", "Payroll & Rewards"],
   },
 ];
 
 const GUILDS = [
   { id: "ai", name: "AI Practitioners" },
   { id: "esg", name: "ESG" },
-  { id: "security", name: "Security Champions" },
-  { id: "design-systems", name: "Design Systems" },
-  { id: "data-literacy", name: "Data Literacy" },
+  { id: "safety", name: "Safety Champions" },
+  { id: "bim", name: "BIM & Digital Twin" },
+  { id: "geo", name: "Ground Engineering" },
   { id: "bids", name: "Bid Excellence" },
+  { id: "cloud", name: "Cloud Community" },
 ];
 
 const PEOPLE = 1000;
-const PER_TRIBE = Math.round(PEOPLE / TRIBES.length);
+// Exactly PEOPLE in all: the first tribes take one more where it does not divide.
+const quota = (k: number) =>
+  Math.floor(PEOPLE / TRIBES.length) + (k < PEOPLE % TRIBES.length ? 1 : 0);
+export const personId = (n: number) => `p${String(n).padStart(4, "0")}`;
 
 export function mockOrg(): Org {
   const r = seeded("gtech-org");
@@ -185,28 +168,31 @@ export function mockOrg(): Org {
   const memberships: Membership[] = [];
   let person = 0;
 
-  for (const t of TRIBES) {
-    // The catalogue's apps in this tribe's area each get a squad first.
-    const apps = t.area
+  for (const [k, t] of TRIBES.entries()) {
+    const PER_TRIBE = quota(k);
+    // The catalogue's apps in this tribe's areas each get a squad first.
+    const apps = t.areas
       ? catalogue.apps.filter((a) =>
-          catalogue.problems.some((p) => a.problems.includes(p.id) && p.area === t.area),
+          catalogue.problems.some(
+            (p) => a.problems.includes(p.id) && t.areas!.includes(p.area),
+          ),
         )
       : [];
     const tribeStart = person;
     let n = 0;
     while (person - tribeStart < PER_TRIBE) {
-      const app = apps[n];
-      const theme = app ? app.name : t.themes[(n - apps.length) % t.themes.length];
-      const round = app ? 0 : Math.floor((n - apps.length) / t.themes.length);
+      const app = apps.find((a) => !squads.some((s) => s.app === a.id));
+      const k = n - apps.length;
+      const theme = app ? app.name : t.themes[k % t.themes.length];
+      const round = app ? 0 : Math.floor(k / t.themes.length);
       const id = `${t.id}-${n + 1}`;
-      const needs = [...t.needs].sort(() => r.next() - 0.5).slice(0, r.int(3, 5));
-      const target = 100;
+      const needs = [...t.needs].sort(() => r.next() - 0.5).slice(0, r.int(4, 6));
       intentions.push({
         id: `${id}-intention`,
         owner: { kind: "project", id },
         says: app ? app.what : `${theme}: ${t.mission.toLowerCase()}`,
         kpi: t.kpi,
-        target,
+        target: 100,
         actual: r.int(35, 125),
         weight: r.int(1, 3),
         needs,
@@ -222,14 +208,18 @@ export function mockOrg(): Org {
         minSize,
       });
       // Some squads are short of people, so understaffing shows.
-      const size = Math.min(PER_TRIBE - (person - tribeStart), r.chance(0.15) ? minSize - 2 : r.int(minSize, minSize + 3));
+      const left = PER_TRIBE - (person - tribeStart);
+      const want = r.chance(0.15) ? minSize - 2 : r.int(minSize, minSize + 3);
+      const size = left - want < 4 ? left : want; // no squad of one or two at the end
       for (let i = 0; i < size; i++) {
         const dept = r.weighted(t.mix);
+        // About one person in ten is only part-allocated, and has time to give.
+        const share = r.chance(1 / 10) ? r.pick([0.5, 0.6, 0.7]) : 1;
         memberships.push({
-          person: `p${String(++person).padStart(4, "0")}`,
+          person: personId(++person),
           squad: id,
           chapter: `${t.id}:${dept}`,
-          share: 1,
+          share,
         });
       }
       n++;
@@ -239,7 +229,7 @@ export function mockOrg(): Org {
   // About one person in twelve is lent to a second squad of their tribe, overloading them.
   const base = [...memberships];
   for (const m of base) {
-    if (!r.chance(1 / 12)) continue;
+    if (m.share < 1 || !r.chance(1 / 12)) continue;
     const tribe = squads.find((s) => s.id === m.squad)!.tribe;
     const other = r.pick(squads.filter((s) => s.tribe === tribe && s.id !== m.squad));
     if (!other) continue;
@@ -250,8 +240,7 @@ export function mockOrg(): Org {
   const guildMembers: Record<string, string[]> = {};
   for (const g of GUILDS) guildMembers[g.id] = [];
   for (let i = 1; i <= person; i++)
-    if (r.chance(0.3))
-      guildMembers[r.pick(GUILDS).id].push(`p${String(i).padStart(4, "0")}`);
+    if (r.chance(0.3)) guildMembers[r.pick(GUILDS).id].push(personId(i));
 
   return {
     departments: DEPARTMENTS,
