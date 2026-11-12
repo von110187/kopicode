@@ -51,11 +51,33 @@ function args() {
   const id = get("--id");
   if (!repo || !id || !/^[a-z0-9-]+$/.test(id)) {
     console.error(
-      "usage: scan.mjs --repo <path> --id <lowercase-id> [--name <name>]",
+      "usage: scan.mjs --repo <path> --id <lowercase-id> [--name <name>] [--kind <kind>]",
     );
     process.exit(1);
   }
-  return { repo: path.resolve(repo), id, name: get("--name") };
+  const kind = get("--kind");
+  if (kind && !KINDS.some((k) => k.kind === kind)) {
+    console.error(`--kind is one of: ${KINDS.map((k) => k.kind).join(", ")}`);
+    process.exit(1);
+  }
+  return { repo: path.resolve(repo), id, name: get("--name"), kind };
+}
+
+// The object a project is drawn as in the world view, by the first rule its
+// name matches, else its summary and its module names. --kind overrides.
+const KINDS = [
+  { kind: "tunnel", words: /tunnel|tbm|mrt|lrt|rail/i },
+  { kind: "map-stack", words: /spatial|gis|\bmaps?\b|geo/i },
+  { kind: "robot", words: /chat|\bbot\b|agent|assistant|voice/i },
+  { kind: "racks", words: /infra|platform|terraform|devops|pipeline/i },
+  { kind: "houses", words: /township|home|property|resident|housing/i },
+  { kind: "city", words: /./ },
+];
+function kindOf(name, rest) {
+  return (
+    KINDS.slice(0, -1).find((k) => k.words.test(name)) ??
+    KINDS.find((k) => k.words.test(rest))
+  ).kind;
 }
 
 const isTest = (rel) =>
@@ -77,7 +99,7 @@ function measure(dir) {
       const p = path.join(d, e.name);
       const r = rel ? `${rel}/${e.name}` : e.name;
       if (e.isDirectory()) {
-        if (!SKIP.has(e.name)) walk(p, r);
+        if (!skipped(e.name)) walk(p, r);
       } else if (SOURCE.has(e.name.split(".").pop())) {
         m.files++;
         if (isTest(r)) m.tests++;
@@ -90,19 +112,29 @@ function measure(dir) {
   return m;
 }
 
+// A hidden folder, a virtual environment and a build's output are not the project's source.
+const skipped = (name) =>
+  SKIP.has(name) ||
+  name.startsWith(".") ||
+  /^(venv|env|site-packages)$/.test(name);
+
 const subdirs = (dir) =>
   fs.existsSync(dir)
     ? fs
         .readdirSync(dir, { withFileTypes: true })
-        .filter((e) => e.isDirectory() && !SKIP.has(e.name))
+        .filter((e) => e.isDirectory() && !skipped(e.name))
         .map((e) => e.name)
     : [];
 
 /** A unit's floors: each folder of src/, with domains/ and the like opened up. */
 function floorsOf(unitDir) {
-  const src = fs.existsSync(path.join(unitDir, "src"))
+  let src = fs.existsSync(path.join(unitDir, "src"))
     ? path.join(unitDir, "src")
     : unitDir;
+  // src/ that holds one package folder and nothing else (Python): its folders are the floors.
+  const only = subdirs(src);
+  if (src !== unitDir && only.length === 1 && !EXPAND.has(only[0]))
+    src = path.join(src, only[0]);
   const floors = [];
   for (const name of subdirs(src)) {
     if (EXPAND.has(name)) {
@@ -201,7 +233,7 @@ function git(repo, ...a) {
   }
 }
 
-const { repo, id, name } = args();
+const { repo, id, name, kind } = args();
 const pkgs = unitDirs(repo).map((rel) => {
   const dir = path.join(repo, rel);
   let pkg = {};
@@ -241,6 +273,12 @@ const district = {
   schema: "gtech-district/1",
   id,
   name: name ?? root.title ?? id,
+  kind:
+    kind ??
+    kindOf(
+      `${id} ${name ?? root.title ?? ""}`,
+      `${root.summary ?? ""} ${units.flatMap((u) => u.floors.map((f) => f.name)).join(" ")}`,
+    ),
   summary: root.summary,
   scannedAt: new Date().toISOString().slice(0, 10),
   git: {
