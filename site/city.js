@@ -400,15 +400,110 @@
   // ---- The world: one object a project, on a grid about the origin.
   var world = new THREE.Group();
   scene.add(world);
-  var cols = Math.ceil(Math.sqrt(districts.length)) || 1;
-  var rows = Math.ceil(districts.length / cols) || 1;
-  var places = districts.map(function (d, i) {
-    var p = buildDistrict(d);
+  // What stands in it: the catalogue's apps (each with its scanned repository
+  // where there is one), then scanned repositories the catalogue does not list,
+  // then an empty plot for each business problem no project works on.
+  var cat = window.GTECH_CATALOGUE || {
+    apps: [],
+    problems: [],
+    gaps: function () {
+      return [];
+    },
+  };
+  var scanned = {};
+  districts.forEach(function (d) {
+    scanned[d.id] = d;
+  });
+  var entries = cat.apps
+    .map(function (a) {
+      return {
+        id: a.id,
+        name: a.name,
+        kind: a.kind,
+        app: a,
+        district: scanned[a.id] || null,
+      };
+    })
+    .concat(
+      districts
+        .filter(function (d) {
+          return !cat.apps.some(function (a) {
+            return a.id === d.id;
+          });
+        })
+        .map(function (d) {
+          return {
+            id: d.id,
+            name: d.name,
+            kind: d.kind,
+            app: null,
+            district: d,
+          };
+        }),
+    );
+  var gapList = cat.gaps(
+    new Date(),
+    entries.filter(function (e) {
+      return !e.app;
+    }),
+  );
+  gapList
+    .filter(function (g) {
+      return g.rule === "no-project";
+    })
+    .forEach(function (g) {
+      var p = cat.problems.filter(function (x) {
+        return x.id === g.problem;
+      })[0];
+      entries.push({
+        id: "gap-" + p.id,
+        name: "No project",
+        kind: "empty",
+        problem: p,
+        app: null,
+        district: null,
+      });
+    });
+  var gapsOf = function (id) {
+    return gapList.filter(function (g) {
+      return g.apps.indexOf(id) >= 0;
+    });
+  };
+
+  var cols = Math.ceil(Math.sqrt(entries.length)) || 1;
+  var rows = Math.ceil(entries.length / cols) || 1;
+  var places = entries.map(function (entry, i) {
+    var d = entry.district;
+    var p = d ? buildDistrict(d) : { district: null };
+    p.entry = entry;
     var hue = PROJECT_HUES[i % PROJECT_HUES.length];
-    var icon = (KIT[d.kind] || KIT.city)(hue);
-    // A larger project is a somewhat larger object: a decade of files is a quarter more.
-    icon.scale.setScalar(0.75 + Math.log10(d.totals.files + 10) / 4);
+    var icon;
+    if (entry.kind === "empty") {
+      // A problem with no project: a ring where one would stand.
+      icon = new THREE.Group();
+      var ring = new THREE.Mesh(
+        new THREE.TorusGeometry(6, 0.35, 8, 40),
+        mat(0xd9534f),
+      );
+      ring.rotation.x = Math.PI / 2;
+      icon.add(at(ring, 0, 0.4, 0));
+    } else {
+      icon = (KIT[entry.kind] || KIT.city)(hue);
+      // A larger project is a somewhat larger object: a decade of files is a quarter more.
+      icon.scale.setScalar(d ? 0.75 + Math.log10(d.totals.files + 10) / 4 : 1);
+    }
+    var flagged = gapsOf(entry.id).length;
+    if (flagged) {
+      var flag = label(
+        flagged + (flagged > 1 ? " gaps" : " gap"),
+        20,
+        "#b3261e",
+      );
+      flag.position.set(0, 17, 0);
+      p.flag = flag;
+    }
     var spot = new THREE.Group();
+    if (p.flag) spot.add(p.flag);
     spot.position.set(
       ((i % cols) - (cols - 1) / 2) * SPACING,
       0,
@@ -426,7 +521,7 @@
       ),
     );
     spot.add(icon);
-    spot.add(at(label(d.name, 26), 0, 1.4, 12.5));
+    spot.add(at(label(entry.name, 26), 0, 1.4, 12.5));
     world.add(spot);
     p.spot = spot;
     p.icon = icon;
@@ -486,7 +581,135 @@
     });
   }
 
+  var rm = function (n) {
+    return "RM " + fmt(n);
+  };
+  var DUMMY =
+    '<p class="sub" style="margin-top:10px">A dummy catalogue: every project, status, date, owner, user count, cost and business problem here is invented.</p>';
+
+  // The business view of one entry: what it is for, who owns it, what it costs, its gaps.
+  function businessHtml(entry) {
+    var a = entry.app;
+    var mine = gapsOf(entry.id);
+    var gaps = mine.length
+      ? "<table><tr><th>Gaps</th></tr>" +
+        mine
+          .map(function (g) {
+            return (
+              "<tr><td>" +
+              esc(g.says) +
+              (g.dummy ? " (dummy)" : "") +
+              "</td></tr>"
+            );
+          })
+          .join("") +
+        "</table>"
+      : '<p class="sub">No gap found by the rules.</p>';
+    if (!a) return gaps;
+    var solves = cat.problems
+      .filter(function (p) {
+        return a.problems.indexOf(p.id) >= 0;
+      })
+      .map(function (p) {
+        return p.name + " (" + p.area + ")";
+      });
+    return (
+      '<p class="sub">' +
+      esc(a.type) +
+      " · " +
+      esc(a.status) +
+      " · docs " +
+      esc(a.docs || "no date") +
+      "</p><p>" +
+      esc(a.what) +
+      ".</p>" +
+      '<p class="sub">Problem: ' +
+      esc(solves.join("; ")) +
+      "</p>" +
+      '<div class="facts"><div><b>' +
+      esc(a.owner || "none") +
+      "</b><span>owner</span></div><div><b>" +
+      fmt(a.users) +
+      "</b><span>users</span></div><div><b>" +
+      rm(a.costMonth) +
+      "</b><span>a month</span></div></div>" +
+      gaps
+    );
+  }
+
+  function showEntry(entry) {
+    card.hidden = false;
+    card.innerHTML = entry.problem
+      ? '<h2>No project</h2><p class="sub">a business problem nobody works on · ' +
+        esc(entry.problem.area) +
+        "</p><p>" +
+        esc(entry.problem.name) +
+        ".</p>" +
+        DUMMY
+      : "<h2>" +
+        esc(entry.name) +
+        "</h2>" +
+        businessHtml(entry) +
+        (entry.district
+          ? ""
+          : '<p class="sub" style="margin-top:10px">No repository scanned for it yet, so it has no inside.</p>') +
+        DUMMY;
+  }
+
+  function showBusiness() {
+    var live = cat.apps;
+    var cost = live.reduce(function (n, a) {
+      return n + a.costMonth;
+    }, 0);
+    card.hidden = false;
+    card.innerHTML =
+      "<h2>GTech at a glance</h2>" +
+      '<div class="facts"><div><b>' +
+      live.length +
+      "</b><span>apps and services</span></div><div><b>" +
+      rm(cost) +
+      "</b><span>a month (dummy)</span></div><div><b>" +
+      gapList.length +
+      "</b><span>gaps</span></div></div>" +
+      "<table><tr><th>Gaps, by rule</th></tr>" +
+      gapList
+        .map(function (g) {
+          var id = g.apps[0] || "gap-" + g.problem;
+          return (
+            '<tr data-entry="' +
+            esc(id) +
+            '"><td>' +
+            esc(g.says) +
+            (g.dummy ? " (dummy)" : "") +
+            "</td></tr>"
+          );
+        })
+        .join("") +
+      "</table>" +
+      '<table style="margin-top:12px"><tr><th>Project</th><th>Status</th><th class="n">Users</th><th class="n">RM / month</th></tr>' +
+      live
+        .map(function (a) {
+          return (
+            '<tr data-entry="' +
+            esc(a.id) +
+            '"><td>' +
+            esc(a.name) +
+            "</td><td>" +
+            esc(a.status) +
+            '</td><td class="n">' +
+            fmt(a.users) +
+            '</td><td class="n">' +
+            fmt(a.costMonth) +
+            "</td></tr>"
+          );
+        })
+        .join("") +
+      "</table>" +
+      DUMMY;
+  }
+
   function showWorld() {
+    if (cat.apps.length) return showBusiness();
     card.hidden = !districts.length;
     card.innerHTML =
       '<h2>Every project</h2><p class="sub">click a project to go inside</p>' +
@@ -658,6 +881,10 @@
     p.group.visible = true;
     paint();
     showDistrict(p.district);
+    card.innerHTML +=
+      '<h2 style="margin-top:14px;font-size:14px">Business</h2>' +
+      businessHtml(p.entry) +
+      DUMMY;
     look(p.centre, p.radius);
     chips();
   }
@@ -677,7 +904,7 @@
 
   var byId = function (id) {
     return places.filter(function (p) {
-      return p.district.id === id;
+      return p.district && p.district.id === id;
     })[0];
   };
 
@@ -685,6 +912,13 @@
     var row = e.target.closest("tr");
     if (!row) return;
     if (row.dataset.enter) return enter(byId(row.dataset.enter));
+    if (row.dataset.entry) {
+      var place = places.filter(function (p) {
+        return p.entry.id === row.dataset.entry;
+      })[0];
+      if (!place) return;
+      return place.district ? enter(place) : showEntry(place.entry);
+    }
     if (!inside) return;
     var hit = inside.floors.filter(function (m) {
       return row.dataset.unit
@@ -738,7 +972,10 @@
       if (h && (!best || h.distance < best.distance))
         best = { distance: h.distance, place: p };
     });
-    if (best) enter(best.place);
+    // A project with a scanned repository is entered; any other shows its business card.
+    if (best && best.place.district) enter(best.place);
+    else if (best) showEntry(best.place.entry);
+    else showWorld();
   });
 
   var bar = document.getElementById("districts");
@@ -751,6 +988,7 @@
   }
   chip("World", "", leave);
   places.forEach(function (p) {
+    if (!p.district) return; // only a project with a scanned repository has an inside
     chip(p.district.name, p.district.id, function () {
       enter(p);
     });
