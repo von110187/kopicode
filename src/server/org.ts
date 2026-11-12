@@ -21,22 +21,48 @@ import { FAMILIES } from "~/org/skills";
 import { standInValues } from "~/org/stand-in-values";
 import type { DepartmentId, Org } from "~/org/types";
 
-// The roster's people join the org in the digital tribes, by the area they
-// want to work in, spread over their squads. Their values come from the
-// roster; their skills, which the roster does not hold, from the stand-in.
-function withRoster(org: Org, standIn: ValuesOf): { values: ValuesOf; roster: number } {
+// The roster's people join the org where the city has them: in the squad of
+// the catalogue app they are on, lent 40% to a second one where they have
+// two. Anyone on no catalogue app joins the digital tribes by the area they
+// want. Their values come from the roster; their skills, which the roster
+// does not hold, from the stand-in. The org is changed in place, before any
+// metric is worked out.
+export function withRoster(org: Org, standIn: ValuesOf): { values: ValuesOf; roster: number } {
   const roster = loadRoster();
   if (!roster) return { values: standIn, roster: 0 };
+  const squadOfApp = new Map(org.squads.filter((s) => s.app).map((s) => [s.app!, s]));
+  const taken = new Set<string>();
+  // A free person of a squad: there only, at full time, not yet a roster person.
+  const freeIn = (squad: string) => {
+    const lent = new Set(org.memberships.filter((m) => m.squad !== squad).map((m) => m.person));
+    return org.memberships.find((m) => m.squad === squad && m.share === 1 && !lent.has(m.person) && !taken.has(m.person));
+  };
   const tribeOf = new Map(org.squads.map((s) => [s.id, s.tribe]));
   const pool = (tribe: string) =>
     [...new Set(org.memberships.filter((m) => tribeOf.get(m.squad) === tribe).map((m) => m.person))].filter(
       (_, i) => i % 3 === 0,
     );
   const pools: Record<string, string[]> = { digital: pool("digital"), platform: pool("platform") };
+
   const fromRoster = new Map<string, PersonValues>();
   for (const p of roster.roster) {
-    const id = pools[p.intention.area === "Build" ? "platform" : "digital"].shift();
+    const squads = p.projects.map((x) => squadOfApp.get(x.id)).filter((s) => s !== undefined);
+    let id: string | undefined;
+    const home = squads[0] && freeIn(squads[0].id);
+    if (home) {
+      id = home.person;
+      const second = squads[1];
+      if (second) {
+        home.share = 0.6;
+        org.memberships.push({ ...home, squad: second.id, share: 0.4 });
+      }
+    } else {
+      const list = pools[p.intention.area === "Build" ? "platform" : "digital"];
+      while (list.length && taken.has(list[0])) list.shift();
+      id = list.shift();
+    }
     if (!id) continue;
+    taken.add(id);
     const base = standIn(id);
     fromRoster.set(id, valuesFromRoster(p, roster.TRAITS, { skills: base?.skills ?? [], tags: base?.tags ?? [] }));
   }

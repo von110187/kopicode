@@ -7,13 +7,13 @@ window.GTECH_DISTRICTS.push({
  "summary": "Every GTech project as a place in one 3D city, so that someone in the business can see what exists, what state it is in, and where the gaps are, without reading a repository.",
  "scannedAt": "2026-11-12",
  "git": {
-  "commits": 9,
+  "commits": 30,
   "lastCommit": "2026-11-12",
-  "contributors": 2
+  "contributors": 3
  },
  "totals": {
-  "files": 7,
-  "lines": 3032,
+  "files": 31,
+  "lines": 8405,
   "tests": 0
  },
  "units": [
@@ -21,28 +21,67 @@ window.GTECH_DISTRICTS.push({
    "id": "kopicode",
    "path": ".",
    "group": "root",
-   "files": 7,
-   "lines": 3032,
+   "files": 31,
+   "lines": 8405,
    "tests": 0,
    "floors": [
     {
-     "name": "site",
+     "name": "org",
      "kind": "support",
-     "files": 5,
-     "lines": 2494,
+     "files": 8,
+     "lines": 1430,
      "tests": 0
     },
     {
-     "name": "tools",
+     "name": "routes",
+     "kind": "support",
+     "files": 4,
+     "lines": 1277,
+     "tests": 0
+    },
+    {
+     "name": "components",
+     "kind": "support",
+     "files": 3,
+     "lines": 855,
+     "tests": 0
+    },
+    {
+     "name": "server",
      "kind": "support",
      "files": 2,
-     "lines": 538,
+     "lines": 312,
+     "tests": 0
+    },
+    {
+     "name": "data",
+     "kind": "support",
+     "files": 1,
+     "lines": 470,
+     "tests": 0
+    },
+    {
+     "name": "lib",
+     "kind": "support",
+     "files": 1,
+     "lines": 6,
+     "tests": 0
+    },
+    {
+     "name": "three",
+     "kind": "support",
+     "files": 1,
+     "lines": 521,
      "tests": 0
     }
    ],
    "deps": [],
    "stack": [
-    "Zod"
+    "React",
+    "Vite",
+    "three.js",
+    "Zod",
+    "Tailwind"
    ],
    "summary": "Every GTech project as a place in one 3D city, so that someone in the business can see what exists, what state it is in, and where the gaps are, without reading a repository."
   }

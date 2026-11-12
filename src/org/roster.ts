@@ -5,9 +5,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
+import { catalogue } from "~/data/catalogue";
 import type { Evidence, PersonValues } from "./metrics";
 
-type RosterPerson = {
+export type RosterPerson = {
   id: string;
   name: string;
   scores: number[]; // one a trait, 0 to 100
@@ -18,15 +19,52 @@ type RosterPerson = {
 };
 type Roster = { roster: RosterPerson[]; TRAITS: { key: string; name: string }[] };
 
-/** The roster, or null when the person module's file is not there. */
+type Staffable = Roster & { staff?: (entries: unknown[]) => void };
+
+/**
+ * The roster, staffed onto every project exactly as the city page staffs it
+ * (as tools/analyze.mjs does too), so each person's `projects` are the ones
+ * the city shows them on. Null when the person module's file is not there.
+ */
 export function loadRoster(): Roster | null {
-  const file = path.join(process.cwd(), "public", "city", "people.js");
-  if (!fs.existsSync(file)) return null;
-  const window: { GTECH_PEOPLE?: Roster } = {};
-  vm.runInContext(fs.readFileSync(file, "utf8"), vm.createContext({ window }), {
-    filename: "people.js",
-  });
-  return window.GTECH_PEOPLE ?? null;
+  const dir = path.join(process.cwd(), "public", "city");
+  if (!fs.existsSync(path.join(dir, "people.js"))) return null;
+  const window: {
+    GTECH_PEOPLE?: Staffable;
+    GTECH_CATALOGUE?: typeof catalogue;
+    GTECH_DISTRICT_IDS?: string[];
+    GTECH_DISTRICTS?: { id: string; name: string }[];
+    GTECH_DUMMY?: (app: unknown) => unknown;
+  } = {};
+  const ctx = vm.createContext({ window, Date });
+  const run = (file: string) => {
+    const f = path.join(dir, file);
+    if (fs.existsSync(f)) vm.runInContext(fs.readFileSync(f, "utf8"), ctx, { filename: file });
+  };
+  run("districts/index.js");
+  for (const id of window.GTECH_DISTRICT_IDS ?? []) run(`districts/${id}.js`);
+  window.GTECH_CATALOGUE = catalogue;
+  run("dummy.js");
+  run("people.js");
+  const people = window.GTECH_PEOPLE;
+  if (!people) return null;
+  const districts = window.GTECH_DISTRICTS ?? [];
+  // The same list, in the same order, as the page staffs.
+  const entries = catalogue.apps
+    .map((a) => ({
+      id: a.id,
+      name: a.name,
+      app: a,
+      district: districts.find((d) => d.id === a.id) ?? window.GTECH_DUMMY?.(a),
+    }))
+    .filter((e) => e.district)
+    .concat(
+      districts
+        .filter((d) => !catalogue.apps.some((a) => a.id === d.id))
+        .map((d) => ({ id: d.id, name: d.name, app: null as never, district: d })),
+    );
+  people.staff?.(entries);
+  return people;
 }
 
 /**

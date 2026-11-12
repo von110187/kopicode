@@ -251,7 +251,7 @@ export function WorldScene({
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     renderer.setSize(el.clientWidth, el.clientHeight);
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     el.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -523,11 +523,12 @@ export function WorldScene({
     ro.observe(el);
 
     const o = new THREE.Object3D();
-    const clock = new THREE.Clock();
+    const timer = new THREE.Timer();
     let frame = 0;
-    const tick = () => {
+    const tick = (now?: number) => {
       frame = requestAnimationFrame(tick);
-      const dt = Math.min(0.05, clock.getDelta());
+      timer.update(now);
+      const dt = Math.min(0.05, timer.getDelta());
       // Walk: towards a spot on the island, pause, pick another.
       for (let i = 0; i < N; i++) {
         const s = st[i];
@@ -566,7 +567,7 @@ export function WorldScene({
       });
       rings.count = lit.length;
       rings.instanceMatrix.needsUpdate = true;
-      const t = clock.elapsedTime;
+      const t = timer.getElapsed();
       flagged.forEach((i, j) => {
         o.position.set(poses[i * 6], poses[i * 6 + 1] + 2.45 + Math.sin(t * 3 + i) * 0.08, poses[i * 6 + 2]);
         o.rotation.set(0, t * 2, 0);
