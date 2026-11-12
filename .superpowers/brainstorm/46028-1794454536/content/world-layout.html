@@ -1,0 +1,115 @@
+<h2>How should the projects and the office fit together?</h2>
+<p class="subtitle">Two ways to lay out the main screen. Rough sketches only: look at the arrangement, not the colours. Click the one that feels closer.</p>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="cube" viewBox="0 0 60 60">
+      <polygon points="30,0 60,15 30,30 0,15" fill="currentColor"/>
+      <polygon points="0,15 30,30 30,60 0,45" fill="currentColor"/>
+      <polygon points="0,15 30,30 30,60 0,45" fill="#000" opacity=".28"/>
+      <polygon points="60,15 30,30 30,60 60,45" fill="currentColor"/>
+      <polygon points="60,15 30,30 30,60 60,45" fill="#000" opacity=".5"/>
+    </symbol>
+    <symbol id="tower" viewBox="0 0 60 110">
+      <polygon points="30,0 60,15 30,30 0,15" fill="currentColor"/>
+      <polygon points="0,15 30,30 30,110 0,95" fill="currentColor"/>
+      <polygon points="0,15 30,30 30,110 0,95" fill="#000" opacity=".28"/>
+      <polygon points="60,15 30,30 30,110 60,95" fill="currentColor"/>
+      <polygon points="60,15 30,30 30,110 60,95" fill="#000" opacity=".5"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="cards">
+
+  <div class="card" data-choice="one-world" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <svg viewBox="0 0 520 330" width="100%" role="img" aria-label="One city where projects are buildings and the office is one of them">
+        <polygon points="260,70 500,190 260,310 20,190" fill="#8a9a8a" opacity=".22"/>
+        <!-- property project: cluster of towers -->
+        <g color="#4f8f6a">
+          <use href="#tower" x="120" y="95" width="42" height="77"/>
+          <use href="#tower" x="150" y="112" width="42" height="77"/>
+          <use href="#cube" x="100" y="150" width="42" height="42"/>
+        </g>
+        <text x="145" y="215" text-anchor="middle" font-size="12" fill="currentColor">Township app</text>
+        <!-- tech project: server racks -->
+        <g color="#4a78b8">
+          <use href="#cube" x="330" y="120" width="40" height="40"/>
+          <use href="#cube" x="330" y="98" width="40" height="40"/>
+          <use href="#cube" x="364" y="137" width="40" height="40"/>
+        </g>
+        <text x="368" y="198" text-anchor="middle" font-size="12" fill="currentColor">Platform infra</text>
+        <!-- infra project: bridge -->
+        <g color="#b08a4a">
+          <use href="#cube" x="205" y="215" width="34" height="34"/>
+          <use href="#cube" x="273" y="249" width="34" height="34"/>
+          <polygon points="222,222 290,256 290,264 222,230" fill="currentColor"/>
+        </g>
+        <text x="258" y="300" text-anchor="middle" font-size="12" fill="currentColor">Tunnel monitoring</text>
+        <!-- office -->
+        <g color="#d9b44a">
+          <use href="#tower" x="232" y="60" width="56" height="103"/>
+        </g>
+        <rect x="196" y="36" width="128" height="22" rx="11" fill="#d9b44a"/>
+        <text x="260" y="51" text-anchor="middle" font-size="12" font-weight="700" fill="#2b2b1a">PJ Trade City · enter</text>
+      </svg>
+    </div>
+    <div class="card-body">
+      <h3>A. One city</h3>
+      <p>Every project is a building in one small city. The office is one of the buildings. Click a project to see its people; click the office to go inside and see the floors.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="side-by-side" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <svg viewBox="0 0 520 330" width="100%" role="img" aria-label="Projects on the left, office floor on the right, linked by selection">
+        <line x1="262" y1="20" x2="262" y2="310" stroke="currentColor" opacity=".25"/>
+        <text x="130" y="30" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">PROJECTS</text>
+        <text x="392" y="30" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">OFFICE · LEVEL 12</text>
+        <!-- project objects in a grid -->
+        <g color="#4f8f6a"><use href="#tower" x="40" y="55" width="38" height="70"/><use href="#cube" x="66" y="92" width="34" height="34"/></g>
+        <text x="72" y="145" text-anchor="middle" font-size="11" fill="currentColor">Township app</text>
+        <g color="#4a78b8"><use href="#cube" x="160" y="70" width="38" height="38"/><use href="#cube" x="160" y="50" width="38" height="38"/></g>
+        <rect x="140" y="42" width="80" height="112" rx="8" fill="none" stroke="#d9b44a" stroke-width="2.5"/>
+        <text x="180" y="145" text-anchor="middle" font-size="11" font-weight="700" fill="currentColor">Platform infra</text>
+        <g color="#b08a4a"><use href="#cube" x="46" y="200" width="34" height="34"/><use href="#cube" x="80" y="217" width="34" height="34"/></g>
+        <text x="80" y="275" text-anchor="middle" font-size="11" fill="currentColor">Tunnel monitoring</text>
+        <g color="#8a6fb0"><use href="#cube" x="162" y="205" width="40" height="40"/></g>
+        <text x="182" y="275" text-anchor="middle" font-size="11" fill="currentColor">HR chatbot</text>
+        <!-- office floor, isometric slab with zones -->
+        <polygon points="392,80 500,134 392,188 284,134" fill="#8a9a8a" opacity=".22"/>
+        <polygon points="392,80 446,107 392,134 338,107" fill="#d9b44a" opacity=".9"/>
+        <polygon points="446,107 500,134 446,161 392,134" fill="#8a9a8a" opacity=".35"/>
+        <polygon points="338,107 392,134 338,161 284,134" fill="#8a9a8a" opacity=".35"/>
+        <polygon points="392,134 446,161 392,188 338,161" fill="#8a9a8a" opacity=".35"/>
+        <text x="392" y="111" text-anchor="middle" font-size="10" font-weight="700" fill="#2b2b1a">Platform</text>
+        <path d="M222,98 C270,98 300,100 340,104" fill="none" stroke="#d9b44a" stroke-width="2" stroke-dasharray="5 4"/>
+        <!-- people list -->
+        <text x="290" y="222" font-size="11" font-weight="700" fill="currentColor">Who to ask</text>
+        <circle cx="297" cy="242" r="7" fill="#4a78b8"/><text x="312" y="246" font-size="11" fill="currentColor">Aina · 214 commits · north corner</text>
+        <circle cx="297" cy="264" r="7" fill="#4a78b8"/><text x="312" y="268" font-size="11" fill="currentColor">Wei Jie · 97 commits · north corner</text>
+        <circle cx="297" cy="286" r="7" fill="#4a78b8"/><text x="312" y="290" font-size="11" fill="currentColor">Farid · 41 commits · Level 9</text>
+      </svg>
+    </div>
+    <div class="card-body">
+      <h3>B. Side by side</h3>
+      <p>Projects on the left, the office floor on the right, both always visible. Pick a project and its team's zone lights up, with the people who commit to it listed underneath.</p>
+    </div>
+  </div>
+
+</div>
+
+<div class="section">
+  <h3>What differs</h3>
+  <div class="split">
+    <div class="pros-cons">
+      <div class="pros"><h4>A. One city</h4><ul><li>Stronger first impression on stage</li><li>Feels like exploring the company</li></ul></div>
+      <div class="cons"><h4>Cost</h4><ul><li>Camera moves and a scene change to go inside the office: the riskiest thing to build in under 24 hours</li><li>The project-to-seat link takes two steps to see</li></ul></div>
+    </div>
+    <div class="pros-cons">
+      <div class="pros"><h4>B. Side by side</h4><ul><li>The whole point is visible in one click: project, people, where they sit</li><li>Three people can build the three panels in parallel</li></ul></div>
+      <div class="cons"><h4>Cost</h4><ul><li>Less of a wow moment; closer to a dashboard</li><li>Gets cramped past roughly 20 projects</li></ul></div>
+    </div>
+  </div>
+</div>

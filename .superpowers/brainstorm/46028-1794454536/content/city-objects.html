@@ -1,0 +1,106 @@
+<h2>One city, each project its own kind of object</h2>
+<p class="subtitle">Layout A, redrawn so nothing is a generic tower except the office. Does SpatialQ read right to you?</p>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="cube2" viewBox="0 0 60 60">
+      <polygon points="30,0 60,15 30,30 0,15" fill="currentColor"/>
+      <polygon points="0,15 30,30 30,60 0,45" fill="currentColor"/>
+      <polygon points="0,15 30,30 30,60 0,45" fill="#000" opacity=".28"/>
+      <polygon points="60,15 30,30 30,60 60,45" fill="currentColor"/>
+      <polygon points="60,15 30,30 30,60 60,45" fill="#000" opacity=".5"/>
+    </symbol>
+    <symbol id="tower2" viewBox="0 0 60 110">
+      <polygon points="30,0 60,15 30,30 0,15" fill="currentColor"/>
+      <polygon points="0,15 30,30 30,110 0,95" fill="currentColor"/>
+      <polygon points="0,15 30,30 30,110 0,95" fill="#000" opacity=".28"/>
+      <polygon points="60,15 30,30 30,110 60,95" fill="currentColor"/>
+      <polygon points="60,15 30,30 30,110 60,95" fill="#000" opacity=".5"/>
+    </symbol>
+    <symbol id="house" viewBox="0 0 30 42">
+      <g color="#e6dcc6"><use href="#cube2" x="0" y="12" width="30" height="30"/></g>
+      <polygon points="0,19.5 15,27 15,2" fill="#b5553c"/>
+      <polygon points="30,19.5 15,27 15,2" fill="#8c3f2c"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="mockup">
+  <div class="mockup-header">Sketch: the city with four kinds of project</div>
+  <div class="mockup-body">
+    <svg viewBox="0 0 640 400" width="100%" role="img" aria-label="City with a township of houses, server racks, a tunnel, a stack of map layers for SpatialQ, and the office tower">
+      <polygon points="320,60 620,210 320,360 20,210" fill="#8a9a8a" opacity=".22"/>
+
+      <!-- office tower -->
+      <g color="#d9b44a"><use href="#tower2" x="290" y="52" width="60" height="110"/></g>
+      <rect x="252" y="26" width="136" height="22" rx="11" fill="#d9b44a"/>
+      <text x="320" y="41" text-anchor="middle" font-size="12" font-weight="700" fill="#2b2b1a">PJ Trade City · enter</text>
+
+      <!-- township: houses -->
+      <use href="#house" x="110" y="150" width="34" height="48"/>
+      <use href="#house" x="150" y="168" width="34" height="48"/>
+      <use href="#house" x="96" y="186" width="34" height="48"/>
+      <circle cx="196" cy="162" r="10" fill="#4f8f6a"/><rect x="194.500" y="170" width="3" height="10" fill="#6b4a2c"/>
+      <text x="140" y="254" text-anchor="middle" font-size="12" fill="currentColor">Township app</text>
+
+      <!-- platform infra: server racks with status lights -->
+      <g color="#3d4a5c">
+        <use href="#cube2" x="398" y="96" width="38" height="38"/>
+        <use href="#cube2" x="398" y="76" width="38" height="38"/>
+        <use href="#cube2" x="430" y="112" width="38" height="38"/>
+      </g>
+      <circle cx="404" cy="98" r="2" fill="#5fe08a"/><circle cx="410" cy="101" r="2" fill="#5fe08a"/>
+      <circle cx="404" cy="118" r="2" fill="#5fe08a"/><circle cx="410" cy="121" r="2" fill="#e0b45f"/>
+      <circle cx="436" cy="134" r="2" fill="#5fe08a"/><circle cx="442" cy="137" r="2" fill="#5fe08a"/>
+      <text x="436" y="168" text-anchor="middle" font-size="12" fill="currentColor">Platform infra</text>
+
+      <!-- tunnel -->
+      <path d="M232,318 Q246,244 300,244 Q354,244 368,318 Z" fill="#6f8a5c"/>
+      <path d="M278,318 V292 a22,22 0 0 1 44,0 V318 Z" fill="#1d2420"/>
+      <path d="M278,292 a22,22 0 0 1 44,0" fill="none" stroke="#c9c2b0" stroke-width="4"/>
+      <polygon points="282,318 318,318 330,340 270,340" fill="#55595c"/>
+      <line x1="300" y1="320" x2="300" y2="338" stroke="#e8e2c8" stroke-width="2" stroke-dasharray="4 4"/>
+      <text x="300" y="358" text-anchor="middle" font-size="12" fill="currentColor">Tunnel monitoring</text>
+
+      <!-- SpatialQ: stacked map layers + pin + chat bubble -->
+      <g>
+        <line x1="440" y1="262" x2="440" y2="214" stroke="currentColor" opacity=".35" stroke-dasharray="3 3"/>
+        <line x1="560" y1="262" x2="560" y2="214" stroke="currentColor" opacity=".35" stroke-dasharray="3 3"/>
+        <line x1="500" y1="292" x2="500" y2="244" stroke="currentColor" opacity=".35" stroke-dasharray="3 3"/>
+        <polygon points="500,232 560,262 500,292 440,262" fill="#4f8f6a" opacity=".9"/>
+        <polygon points="500,208 560,238 500,268 440,238" fill="#4a78b8" opacity=".75"/>
+        <path d="M455,238 Q480,226 500,240 T545,238" fill="none" stroke="#dff0ff" stroke-width="2"/>
+        <polygon points="500,184 560,214 500,244 440,214" fill="#e9e2cf" opacity=".85" stroke="#b9ae90"/>
+        <path d="M470,199 L530,229 M530,199 L470,229 M500,184 L500,244" stroke="#b9ae90" stroke-width="1"/>
+        <!-- pin -->
+        <path d="M512,206 c-9,-12 -13,-17 -13,-24 a13,13 0 0 1 26,0 c0,7 -4,12 -13,24 z" fill="#d9534a"/>
+        <circle cx="512" cy="182" r="4.500" fill="#fff"/>
+        <!-- chat bubble -->
+        <rect x="530" y="140" width="92" height="30" rx="9" fill="#2f3a36"/>
+        <polygon points="542,170 552,170 540,180" fill="#2f3a36"/>
+        <text x="576" y="159" text-anchor="middle" font-size="11" fill="#f2f0e6">"flood risk here?"</text>
+      </g>
+      <rect x="452" y="300" width="96" height="22" rx="11" fill="none" stroke="#d9b44a" stroke-width="2"/>
+      <text x="500" y="315" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">SpatialQ</text>
+    </svg>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Why SpatialQ looks like that</h3>
+  <p>SpatialQ lets people ask questions about map data in a chat. So the object is a stack of floating map sheets (the data layers), a pin dropped on the top sheet (a place), and a speech bubble (the question). In real 3D the sheets can slowly drift apart and back together, and the bubble can cycle through example questions.</p>
+</div>
+
+<div class="section">
+  <h3>How every project gets its own object without modelling each by hand</h3>
+  <div class="options">
+    <div class="option" data-choice="kit" onclick="toggleSelect(this)">
+      <div class="letter">1</div>
+      <div class="content"><h3>A kit of about eight object types</h3><p>Houses, tunnel, bridge, server racks, map stack, robot, factory, satellite dish. Each repo is matched to one type automatically, and colour and size vary per project.</p></div>
+    </div>
+    <div class="option" data-choice="hero" onclick="toggleSelect(this)">
+      <div class="letter">2</div>
+      <div class="content"><h3>Kit plus a few hand-made stars</h3><p>Same kit, but three or four projects you'll demo on stage (SpatialQ, a tunnel one) get a custom animated object.</p></div>
+    </div>
+  </div>
+</div>
