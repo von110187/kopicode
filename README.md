@@ -36,7 +36,8 @@ Where to find it on the page:
 - **In the world**, a project's object says what it does by its shape and what state it is in by how it is dressed: grey and overgrown with no commit in 90 days, taped off under 10% tests, a "to let" board with no owner, a fenced plot before any code, scaffolding and a crane under 150 commits.
 - **Everyone stands at the project they work on**, and walks the way they work: evenly or in dashes and stops, in a group or alone, between two projects where they are on two, calling on other teams where they review often. Whoever is on no project keeps to a commons at the edge.
 - **A pennant** flies over a project that is short of someone. Clicking it, or its row under "Short of someone", sends up a flare: the five people who fit best walk over, the best fit arriving first, the model's pick in a spotlight, and a card lists who is coming and why.
-- **A search box and two filters** (free now, open to move) light up the people who pass. The search reads a name, a project, a strength, what someone wants and how they work. It does not read skills: the roster has none of its own.
+- **One view switch, on every page**, moves between the people by domain (where people are filtered), the projects in 3D and the catalogue. The project world has no filters of its own.
+- **A map key** along the bottom of the world says what each thing in it means.
 - **Tour** walks the camera through all of this with a line for each stop.
 - **Staffing**, in the bar, lists every open seat with who the rule and the model would put in it, and every person with what they are on and the time they have left.
 - **A project's card** lists its team and its open seats.

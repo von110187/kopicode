@@ -19,8 +19,8 @@
   var PROJECT_HUES = [205, 28, 150, 265, 330, 95, 175, 45];
 
   var scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xfbf6ee);
-  scene.fog = new THREE.Fog(0xfbf6ee, 260, 620);
+  // The page's sky shows through behind the scene; distance fades into it.
+  scene.fog = new THREE.Fog(0xe9e6fb, 460, 980);
   var camera = new THREE.PerspectiveCamera(
     40,
     innerWidth / innerHeight,
@@ -29,6 +29,7 @@
   );
   var renderer = new THREE.WebGLRenderer({
     antialias: true,
+    alpha: true,
     preserveDrawingBuffer: q.has("shot"),
   });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -44,12 +45,20 @@
   var sun = new THREE.DirectionalLight(0xfff2d6, 0.55);
   sun.position.set(60, 120, 40);
   scene.add(sun);
-  var ground = new THREE.Mesh(
-    new THREE.CircleGeometry(900, 48),
-    new THREE.MeshLambertMaterial({ color: 0xf3eee2 }),
+  // The ground is an island floating on the sky: grass on top, earth at its edge.
+  var ground = new THREE.Group();
+  var grass = new THREE.Mesh(
+    new THREE.CylinderGeometry(175, 175, 2, 72),
+    // Unlit, so the grass keeps its colour under the scene's bright light.
+    new THREE.MeshBasicMaterial({ color: 0xcbe3b8 }),
   );
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.y = -0.85;
+  grass.position.y = -1.85;
+  var earth = new THREE.Mesh(
+    new THREE.CylinderGeometry(175, 120, 34, 72),
+    new THREE.MeshLambertMaterial({ color: 0xd9b384 }),
+  );
+  earth.position.y = -19.9;
+  ground.add(grass, earth);
   scene.add(ground);
 
   function colour(h, s, l) {
@@ -673,7 +682,7 @@
       at(
         new THREE.Mesh(
           new THREE.CylinderGeometry(11, 11, 0.8, 40),
-          mat(0xdfe8d3),
+          mat(0xeef4e6),
         ),
         0,
         -0.42,
@@ -828,84 +837,9 @@
     });
   }
 
-  // ---- A lens over the people in the world: a search box and two filters.
-  // Whoever passes stands taller with a ring at their feet; the rest shrink back.
-  var lens = { q: "", free: false, open: false };
-  function hay(w) {
-    var p = w.person;
-    var b = p.behaviour;
-    return [
-      p.name,
-      p.first.name,
-      p.second.name,
-      p.first.role,
-      "wants to grow as " + p.intention.grow.name,
-      p.intention.path.says,
-      p.intention.area,
-      b.pace >= 50 ? "in bursts" : "steady",
-      b.together >= 50 ? "with others" : "alone",
-      b.review >= 50 ? "reviews often" : "reviews rarely",
-    ]
-      .concat(
-        p.projects.map(function (o) {
-          return o.name;
-        }),
-      )
-      .join(" ")
-      .toLowerCase();
-  }
-  function passes(w) {
-    return (
-      (!lens.q || hay(w).indexOf(lens.q) >= 0) &&
-      (!lens.free || !w.person.projects.length) &&
-      (!lens.open || w.person.intention.openToMove)
-    );
-  }
-  function relens() {
-    var any = !!lens.q || lens.free || lens.open;
-    var lit = 0;
-    walkers.forEach(function (w) {
-      var on = any && passes(w);
-      if (on) lit++;
-      if (!w.base) w.base = w.fig.scale.x;
-      w.fig.scale.setScalar(w.base * (!any ? 1 : on ? 1.45 : 0.55));
-      if (on && !w.ring) {
-        w.ring = new THREE.Mesh(
-          new THREE.TorusGeometry(1.5, 0.16, 8, 28),
-          new THREE.MeshBasicMaterial({
-            color: new THREE.Color().setHSL(w.person.first.hue / 360, 0.7, 0.45),
-          }),
-        );
-        w.ring.rotation.x = Math.PI / 2;
-        w.ring.position.y = 0.15;
-        w.fig.add(w.ring);
-      }
-      if (w.ring) w.ring.visible = on;
-    });
-    if (!inside)
-      hint.textContent = any
-        ? lit + (lit === 1 ? " person" : " people") + " lit up of " + walkers.length + ". Clear the search and filters to see everyone."
-        : WORLD_HINT;
-  }
+  // What the world view says of itself, under the scene.
   var WORLD_HINT =
     "Every project is one object, its shape by what the project is. People stand at the project they work on, and walk the way they work. A pennant is a project short of someone: click it to send up its flare. Click a project to go inside.";
-  (function () {
-    var box = document.getElementById("q");
-    if (box)
-      box.addEventListener("input", function () {
-        lens.q = box.value.trim().toLowerCase();
-        relens();
-      });
-    ["free", "open"].forEach(function (key) {
-      var b = document.getElementById("f-" + key);
-      if (b)
-        b.addEventListener("click", function () {
-          lens[key] = !lens[key];
-          b.setAttribute("aria-pressed", String(lens[key]));
-          relens();
-        });
-    });
-  })();
 
   // ---- A flare: a project that is short of someone calls the people who fit,
   // and they walk to it, the best fit arriving first.
@@ -987,8 +921,9 @@
       // The better the fit, the sooner they arrive, however far off they start.
       w.speed = Math.hypot(w.tx - w.fig.position.x, w.tz - w.fig.position.z) / (4 + i * 1.7);
       var pick = ai && ai.pick === m.person.id;
-      w.tag = label(m.person.name + " " + m.score + (pick ? " · AI" : ""), 19, pick ? "#b3541e" : null);
-      w.tag.position.set(0, 4.9, 0);
+      w.tag = label(m.person.name + " " + m.score + (pick ? " · AI" : ""), 15, pick ? "#2a44e0" : null);
+      // Every other tag sits higher, so five people in a row can each be read.
+      w.tag.position.set(0, i % 2 ? 6.4 : 4.7, 0);
       w.fig.add(w.tag);
       w.onArrive = function () {
         if (place.dressed) place.dressed.relight(); // someone has come: the lights go back on
@@ -1430,12 +1365,11 @@
     hint.textContent = inside
       ? "A building is one app or package, a floor one module, as tall as its file count. Drag to orbit, scroll to zoom, click a floor."
       : WORLD_HINT;
-    // The search and the filters are over the people in the world.
-    ["q", "f-free", "f-open", "tour"].forEach(function (id) {
+    // The tour and the map key belong to the world view.
+    ["tour", "key"].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) el.hidden = !!inside;
     });
-    if (!inside && typeof relens === "function" && (lens.q || lens.free || lens.open)) relens();
   }
 
   // The seats of the project the page is inside, and the one being looked at.

@@ -13,6 +13,7 @@ import {
   IconUsersGroup,
 } from "@tabler/icons-react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { ViewSwitch } from "~/components/ViewSwitch";
 import { lazy, type ReactNode, Suspense, useEffect, useMemo, useState } from "react";
 import type { Fit, Zone } from "~/components/WorldScene";
 import { FloatingDock } from "~/components/ui/floating-dock";
@@ -230,7 +231,10 @@ function OrgPage() {
 
       <header className="hud-top">
         <div className="brand">
-          <Link to="/">GTech City</Link>
+          <div className="brand-row">
+            <Link to="/">GTech City</Link>
+            <ViewSwitch current="org" />
+          </div>
           <span>
             {world.totals.people} people · {world.totals.roster} from the person roster · each domain an island
           </span>

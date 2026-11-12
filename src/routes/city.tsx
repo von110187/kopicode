@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { catalogue } from "~/data/catalogue";
+import { ViewSwitch } from "~/components/ViewSwitch";
 import { createFigureKit, type FigureKit } from "~/three/figure-kit";
 import cityCss from "~/styles/city.css?url";
 
@@ -65,19 +66,8 @@ function City() {
             GTech City
           </a>
         </h1>
+        <ViewSwitch current="city" />
         <span id="districts"></span>
-        <input
-          id="q"
-          type="search"
-          placeholder="Search a person, project, strength or intention"
-          aria-label="Search a person, project, strength or intention"
-        />
-        <button id="f-free" aria-pressed="false">
-          Free now
-        </button>
-        <button id="f-open" aria-pressed="false">
-          Open to move
-        </button>
         <button id="explode" aria-pressed="false">
           Explode
         </button>
@@ -94,6 +84,14 @@ function City() {
         </button>
       </div>
       <aside id="card" hidden aria-live="polite"></aside>
+      <div id="key">
+        <b>Map key</b>
+        <span>The shape is what it does</span>
+        <span>Grey and overgrown: no commit in 90 days</span>
+        <span>Taped off: under 10% tests</span>
+        <span>Scaffolding: a young project</span>
+        <span>A pennant: short of someone</span>
+      </div>
       <div id="hint">
         A district is a repository. A building is one app or package, a floor
         one module, as tall as its file count. Drag to orbit, scroll to zoom,
