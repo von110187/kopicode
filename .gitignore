@@ -1,5 +1,8 @@
 # Scanned districts hold a repository's structure; a private one stays off the remote.
 site/districts/*.js
+# The one exception: this repository's own scan, so the deployed site has a project to enter.
+!site/districts/index.js
+!site/districts/kopicode.js
 .DS_Store
 # What a model said about the mock people: it names scanned projects, so it stays off the remote too.
 site/analysis.js
