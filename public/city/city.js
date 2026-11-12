@@ -828,6 +828,85 @@
     });
   }
 
+  // ---- A lens over the people in the world: a search box and two filters.
+  // Whoever passes stands taller with a ring at their feet; the rest shrink back.
+  var lens = { q: "", free: false, open: false };
+  function hay(w) {
+    var p = w.person;
+    var b = p.behaviour;
+    return [
+      p.name,
+      p.first.name,
+      p.second.name,
+      p.first.role,
+      "wants to grow as " + p.intention.grow.name,
+      p.intention.path.says,
+      p.intention.area,
+      b.pace >= 50 ? "in bursts" : "steady",
+      b.together >= 50 ? "with others" : "alone",
+      b.review >= 50 ? "reviews often" : "reviews rarely",
+    ]
+      .concat(
+        p.projects.map(function (o) {
+          return o.name;
+        }),
+      )
+      .join(" ")
+      .toLowerCase();
+  }
+  function passes(w) {
+    return (
+      (!lens.q || hay(w).indexOf(lens.q) >= 0) &&
+      (!lens.free || !w.person.projects.length) &&
+      (!lens.open || w.person.intention.openToMove)
+    );
+  }
+  function relens() {
+    var any = !!lens.q || lens.free || lens.open;
+    var lit = 0;
+    walkers.forEach(function (w) {
+      var on = any && passes(w);
+      if (on) lit++;
+      if (!w.base) w.base = w.fig.scale.x;
+      w.fig.scale.setScalar(w.base * (!any ? 1 : on ? 1.45 : 0.55));
+      if (on && !w.ring) {
+        w.ring = new THREE.Mesh(
+          new THREE.TorusGeometry(1.5, 0.16, 8, 28),
+          new THREE.MeshBasicMaterial({
+            color: new THREE.Color().setHSL(w.person.first.hue / 360, 0.7, 0.45),
+          }),
+        );
+        w.ring.rotation.x = Math.PI / 2;
+        w.ring.position.y = 0.15;
+        w.fig.add(w.ring);
+      }
+      if (w.ring) w.ring.visible = on;
+    });
+    if (!inside)
+      hint.textContent = any
+        ? lit + (lit === 1 ? " person" : " people") + " lit up of " + walkers.length + ". Clear the search and filters to see everyone."
+        : WORLD_HINT;
+  }
+  var WORLD_HINT =
+    "Every project is one object, its shape by what the project is. People stand at the project they work on, and walk the way they work. A pennant is a project short of someone: click it to send up its flare. Click a project to go inside.";
+  (function () {
+    var box = document.getElementById("q");
+    if (box)
+      box.addEventListener("input", function () {
+        lens.q = box.value.trim().toLowerCase();
+        relens();
+      });
+    ["free", "open"].forEach(function (key) {
+      var b = document.getElementById("f-" + key);
+      if (b)
+        b.addEventListener("click", function () {
+          lens[key] = !lens[key];
+          b.setAttribute("aria-pressed", String(lens[key]));
+          relens();
+        });
+    });
+  })();
+
   // ---- A flare: a project that is short of someone calls the people who fit,
   // and they walk to it, the best fit arriving first.
   var flare = null;
@@ -1089,6 +1168,41 @@
         DUMMY;
   }
 
+  /** The projects that are short of someone, each a row that sends up its flare. */
+  function shortOf() {
+    var rows = places.filter(function (p) {
+      return p.openSeats && p.openSeats.length;
+    });
+    if (!rows.length) return "";
+    return (
+      "<table><tr><th>Short of someone</th><th>Needs</th></tr>" +
+      rows
+        .map(function (p) {
+          return (
+            '<tr data-flare-place="' +
+            esc(p.entry.id) +
+            '" style="cursor:pointer"><td>' +
+            esc(p.entry.name) +
+            "</td><td>" +
+            p.openSeats
+              .map(function (s) {
+                return (
+                  '<span style="color:hsl(' +
+                  s.trait.hue +
+                  ',55%,38%);font-weight:600">' +
+                  esc(s.trait.name.toLowerCase()) +
+                  "</span>"
+                );
+              })
+              .join(", ") +
+            "</td></tr>"
+          );
+        })
+        .join("") +
+      '</table><p class="sub" style="margin:8px 0 12px">Click a row, or the project\'s pennant, to send up its flare and see who walks over.</p>'
+    );
+  }
+
   function showBusiness() {
     var live = cat.apps;
     var cost = live.reduce(function (n, a) {
@@ -1104,6 +1218,7 @@
       "</b><span>a month (dummy)</span></div><div><b>" +
       gapList.length +
       "</b><span>gaps</span></div></div>" +
+      shortOf() +
       "<table><tr><th>Gaps, by rule</th></tr>" +
       gapList
         .map(function (g) {
@@ -1314,7 +1429,13 @@
     wiringBtn.hidden = !inside || !inside.wires.children.length;
     hint.textContent = inside
       ? "A building is one app or package, a floor one module, as tall as its file count. Drag to orbit, scroll to zoom, click a floor."
-      : "Every project is one object, its shape by what the project is. People stand at the project they work on, and walk the way they work. A pennant is a project short of someone: click it to send up its flare. Click a project to go inside.";
+      : WORLD_HINT;
+    // The search and the filters are over the people in the world.
+    ["q", "f-free", "f-open", "tour"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.hidden = !!inside;
+    });
+    if (!inside && typeof relens === "function" && (lens.q || lens.free || lens.open)) relens();
   }
 
   // The seats of the project the page is inside, and the one being looked at.
@@ -1453,6 +1574,7 @@
   }
 
   function enter(p) {
+    if (typeof stopTour === "function") stopTour();
     if (inside) inside.group.visible = false;
     inside = p;
     selected = null;
@@ -1507,6 +1629,16 @@
     if (e.target.closest("label")) return; // its checkbox's own click follows
     var row = e.target.closest("tr");
     if (!row) return;
+    if (row.dataset.flarePlace) {
+      var short = places.filter(function (p) {
+        return p.entry.id === row.dataset.flarePlace;
+      })[0];
+      if (short) {
+        sendFlare(short, 0);
+        look(short.spot.position.clone().setY(4), 46);
+      }
+      return;
+    }
     if (row.dataset.open) return openSeat(row.dataset.open);
     if (row.dataset.who) {
       card.innerHTML = People.personCard(row.dataset.who, "Staffing");
@@ -1713,6 +1845,80 @@
       motionBtn.textContent = still ? "Play motion" : "Motion on";
     });
   }
+  // ---- The tour: the camera walks through what the world says, with a line for each stop.
+  var tourBtn = document.getElementById("tour");
+  var tourTimer = null;
+  function stopTour() {
+    clearTimeout(tourTimer);
+    tourTimer = null;
+    if (tourBtn) tourBtn.textContent = "Tour";
+  }
+  function startTour() {
+    var by = function (test) {
+      return places.filter(function (p) {
+        return p.state && test(p);
+      })[0];
+    };
+    var healthy = by(function (p) {
+      return !p.state.stale && !p.state.precode && !p.state.thin && !p.state.young;
+    });
+    var plot = by(function (p) {
+      return p.state.precode;
+    });
+    var quiet = by(function (p) {
+      return p.state.stale && p.openSeats && p.openSeats.length;
+    });
+    var picked = places.filter(function (p) {
+      var a = window.GTECH_ANALYSIS;
+      return p.openSeats && p.openSeats.length && a && a.seats[p.entry.id + "/" + p.openSeats[0].trait.key];
+    })[0];
+    var near = function (p, r) {
+      look(p.spot.position.clone().setY(4), r || 34);
+    };
+    var whole = function () {
+      look(new THREE.Vector3(0, 4, 0), Math.max(cols, rows) * SPACING * 0.75 + 22);
+    };
+    var steps = [
+      [5, whole, "Every project is an object shaped by what it does, and everyone stands at the project they work on."],
+    ];
+    if (healthy)
+      steps.push([7, function () { near(healthy); }, healthy.entry.name + " is in good shape. Watch how its people walk: some keep together, some dash and stop, someone on two projects walks between them."]);
+    if (plot)
+      steps.push([6, function () { near(plot); }, plot.entry.name + " has no code yet, so it is a fenced plot with the plan on a board."]);
+    if (quiet) {
+      steps.push([7, function () { near(quiet); }, quiet.entry.name + " has had no commit in " + quiet.state.quiet + " days: grey and overgrown. Its pennant says it is short of a " + quiet.openSeats[0].trait.name.toLowerCase() + "."]);
+      steps.push([12, function () { sendFlare(quiet, 0); near(quiet, 52); }, "It sends up a flare. The people who fit walk over, the best fit arriving first, and the colour comes back."]);
+    }
+    if (picked) {
+      var need = picked.openSeats[0];
+      var pick = window.GTECH_ANALYSIS.seats[picked.entry.id + "/" + need.trait.key].pick;
+      steps.push([13, function () { sendFlare(picked, 0); near(picked, 46); }, picked.entry.name + " needs a " + need.trait.name.toLowerCase() + ". The rule ranks five people; the AI's own pick, " + People.person(pick).name + ", is the one who ends up in the spotlight."]);
+    }
+    steps.push([1, function () { sendHome(); showWorld(); whole(); }, WORLD_HINT]);
+    var i = 0;
+    // A tour is asked for, so it plays even where the device prefers less motion.
+    if (still && motionBtn) motionBtn.click();
+    if (inside) leave();
+    sendHome();
+    tourBtn.textContent = "Stop tour";
+    (function next() {
+      if (i >= steps.length) return stopTour();
+      var s = steps[i++];
+      s[1]();
+      hint.textContent = s[2];
+      tourTimer = setTimeout(next, s[0] * 1000);
+    })();
+  }
+  if (tourBtn)
+    tourBtn.addEventListener("click", function () {
+      if (tourTimer) {
+        stopTour();
+        sendHome();
+        showWorld();
+        hint.textContent = WORLD_HINT;
+      } else startTour();
+    });
+
   var lastT = 0;
   function frame() {
     requestAnimationFrame(frame);

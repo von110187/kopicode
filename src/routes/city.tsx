@@ -66,6 +66,28 @@ function City() {
           </a>
         </h1>
         <span id="districts"></span>
+        <button id="tour">Tour</button>
+        <input
+          id="q"
+          type="search"
+          placeholder="Search a person, project, strength or intention"
+          aria-label="Search a person, project, strength or intention"
+          style={{
+            font: "inherit",
+            padding: "6px 12px",
+            borderRadius: 999,
+            border: "1px solid #d9d2c4",
+            background: "#fff",
+            width: 290,
+            maxWidth: "40vw",
+          }}
+        />
+        <button id="f-free" aria-pressed="false">
+          Free now
+        </button>
+        <button id="f-open" aria-pressed="false">
+          Open to move
+        </button>
         <button id="staffing">Staffing</button>
         <button id="motion" aria-pressed="false" hidden>
           Play motion

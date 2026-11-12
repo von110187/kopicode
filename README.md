@@ -33,10 +33,15 @@ Each person has a **behaviour** (how they work: their pace, whether they work al
 
 Where to find it on the page:
 
-- **In the world**, a dot above a project is a seat it has open, in the colour of the trait it needs.
+- **In the world**, a project's object says what it does by its shape and what state it is in by how it is dressed: grey and overgrown with no commit in 90 days, taped off under 10% tests, a "to let" board with no owner, a fenced plot before any code, scaffolding and a crane under 150 commits.
+- **Everyone stands at the project they work on**, and walks the way they work: evenly or in dashes and stops, in a group or alone, between two projects where they are on two, calling on other teams where they review often. Whoever is on no project keeps to a commons at the edge.
+- **A pennant** flies over a project that is short of someone. Clicking it, or its row under "Short of someone", sends up a flare: the five people who fit best walk over, the best fit arriving first, the model's pick in a spotlight, and a card lists who is coming and why.
+- **A search box and two filters** (free now, open to move) light up the people who pass. The search reads a name, a project, a strength, what someone wants and how they work. It does not read skills: the roster has none of its own.
+- **Tour** walks the camera through all of this with a line for each stop.
 - **Staffing**, in the bar, lists every open seat with who the rule and the model would put in it, and every person with what they are on and the time they have left.
 - **A project's card** lists its team and its open seats.
 - **Inside a project**, the candidate being looked at stands see-through at the end of the team, on a ring that marks the seat.
+- **Where the device asks for less motion** nothing walks and a flare's candidates simply stand at the project; a "Play motion" button turns it on.
 
 ![Every open seat and every person on one card](docs/staffing.png)
 
