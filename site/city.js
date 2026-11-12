@@ -377,17 +377,23 @@
       });
     });
 
+    // The project's team, where the page has the people module (all of it mock).
+    var people = window.GTECH_PEOPLE
+      ? window.GTECH_PEOPLE.stand(d, g, width, depth)
+      : [];
     g.visible = false;
     scene.add(g);
     return {
       district: d,
       group: g,
       floors: floors,
+      people: people,
       tops: tops,
       wires: wires,
       centre: new THREE.Vector3(width / 2, tallest * 0.45, depth / 2),
       // The view takes in the tallest building as well as the plot.
-      radius: Math.max(width, depth, tallest * 1.5),
+      // and the team in front of it, however small the project.
+      radius: Math.max(width, depth + 8, tallest * 1.5, 26),
     };
   }
 
@@ -705,6 +711,23 @@
       camera,
     );
     if (inside) {
+      // A person stands in front of the buildings, so a click on one is theirs first.
+      var who = ray.intersectObjects(inside.people, true)[0];
+      if (who) {
+        var fig = who.object;
+        while (fig && !fig.userData.person) fig = fig.parent;
+        selected = null;
+        paint();
+        card.hidden = false;
+        card.innerHTML = window.GTECH_PEOPLE.card(
+          fig.userData.person,
+          inside.district,
+          inside.people.map(function (f) {
+            return f.userData.person;
+          }),
+        );
+        return;
+      }
       var hit = ray.intersectObjects(inside.floors)[0];
       return select(hit ? hit.object : null);
     }
@@ -772,6 +795,15 @@
       );
     })[0];
     if (pick) select(pick);
+  }
+  if (inside && q.has("person") && inside.people[Number(q.get("person"))]) {
+    card.innerHTML = window.GTECH_PEOPLE.card(
+      inside.people[Number(q.get("person"))].userData.person,
+      inside.district,
+      inside.people.map(function (f) {
+        return f.userData.person;
+      }),
+    );
   }
   if (q.has("explode")) exploded = 1;
 
