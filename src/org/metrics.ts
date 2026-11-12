@@ -1,7 +1,7 @@
 // Group metrics, recomputed from the org and from each person's values.
 // The person module owns those values; this file only reads them, through
 // `ValuesOf`, and rolls them up to squads, tribes and departments.
-import { familyOf, skillName } from "./skills";
+import { FAMILIES, familyOf, skillName } from "./skills";
 import type { DepartmentId, Intention, Membership, Org } from "./types";
 
 export type Evidence = { kind: "social" | "productivity"; says: string };
@@ -12,6 +12,11 @@ export type PersonValues = {
   tags?: string[]; // narrow a skill down, e.g. DevOps → AWS
   comms: string;
   scores: { name: string; value: number; evidence: Evidence[] }[];
+  // Where the person module has them: who they are and what they want.
+  name?: string;
+  source?: "roster" | "stand-in";
+  openToMove?: boolean;
+  intention?: string;
 };
 export type ValuesOf = (person: string) => PersonValues | undefined;
 
@@ -305,6 +310,16 @@ export function computeOrg(org: Org, valuesOf: ValuesOf) {
     return over(g.id, g.name, org.memberships.filter((m) => people.has(m.person)));
   });
 
+  // Domains cut across everything: a family's people are whoever has one of its skills.
+  const domains = FAMILIES.map((f) => {
+    const ids = new Set(f.skills.map((x) => x.id));
+    return over(
+      f.id,
+      f.name,
+      org.memberships.filter((m) => valuesOf(m.person)?.skills.some((s) => ids.has(s))),
+    );
+  });
+
   const people = new Set(org.memberships.map((m) => m.person));
   const plans = planBorderline(org, valuesOf, squads);
   const gaps = squads.reduce((n, s) => n + s.missing.length, 0);
@@ -333,6 +348,7 @@ export function computeOrg(org: Org, valuesOf: ValuesOf) {
     squads,
     chapters,
     guilds,
+    domains,
   };
 }
 
@@ -379,7 +395,8 @@ function planBorderline(org: Org, valuesOf: ValuesOf, squads: SquadMetrics[]) {
       Object.entries(sq.comms).sort((a, b) => b[1] - a[1])[0]?.[0];
     const move = v.skills
       .flatMap((skill) => (lacking.get(skill) ?? []).map((sq) => ({ skill, sq })))
-      .filter((x) => x.sq.id !== m.squad && dominant(x.sq) === v.comms)
+      // Nobody who has said they want to stay is moved.
+      .filter((x) => v.openToMove !== false && x.sq.id !== m.squad && dominant(x.sq) === v.comms)
       // A gap nobody can be borrowed for first.
       .sort((a, b) => Number(b.sq.hire.includes(b.skill)) - Number(a.sq.hire.includes(a.skill)))[0];
     if (move) {
@@ -414,6 +431,9 @@ function planBorderline(org: Org, valuesOf: ValuesOf, squads: SquadMetrics[]) {
 
 export type MemberRow = {
   person: string;
+  name: string | null; // where the person module names them
+  source: "roster" | "stand-in" | null;
+  intention: string | null;
   department: DepartmentId;
   tribes: string[];
   squads: string[];
@@ -452,6 +472,9 @@ export function memberRows(
     const skills = v ? [...new Set(v.skills)] : null;
     return {
       person,
+      name: v?.name ?? null,
+      source: v ? (v.source ?? "stand-in") : null,
+      intention: v?.intention ?? null,
       department: chapter.get(ms[0].chapter)!.department,
       tribes: [...new Set(ms.map((m) => squad.get(m.squad)!.tribe))],
       squads: ms.map((m) => m.squad),
@@ -471,6 +494,130 @@ export function memberRows(
       plan: plans.get(person) ?? null,
     };
   });
+}
+
+// ---- Domains: skill families, cut across every grouping.
+
+export type DomainCell = {
+  family: string;
+  holders: number; // people in the group with a skill of the family
+  needed: number; // skills of the family the group's squads need
+  lacking: string[]; // needed skills fewer people have than squads need them
+  shortfall: number; // squads, summed over those skills, nobody in the group can cover
+};
+
+export type Sharer = {
+  person: string;
+  name: string | null;
+  skill: string;
+  comms: string;
+  fit: boolean; // communicates the way the group mostly does
+  spare: number;
+};
+
+// A group lacking skills of a domain, paired with the group strongest in them
+// and the people there best placed to share what they know.
+export type Collab = {
+  group: string;
+  family: string;
+  skills: string[];
+  partner: string;
+  partnerHolders: number;
+  people: Sharer[];
+};
+
+// A department or chapter is held only to the domains its department is home to.
+export type GroupMembers = { id: string; members: Membership[]; department?: DepartmentId };
+
+export function domainsOf(
+  org: Org,
+  valuesOf: ValuesOf,
+  groups: GroupMembers[],
+): { cells: Record<string, DomainCell[]>; collabs: Collab[] } {
+  const needsOf = new Map(org.squads.map((s) => [s.id, org.intentions.find((i) => i.id === s.intention)!.needs]));
+  const load = new Map<string, number>();
+  for (const m of org.memberships) load.set(m.person, (load.get(m.person) ?? 0) + m.share);
+
+  const facts = groups.map((g) => {
+    const people = [...new Set(g.members.map((m) => m.person))];
+    const vs = people.map((p) => ({ p, v: valuesOf(p) })).filter((x) => x.v) as { p: string; v: PersonValues }[];
+    // Supply: people a skill. Demand: the group's squads that need it.
+    const supply = new Map<string, number>();
+    for (const x of vs) for (const sk of new Set(x.v.skills)) supply.set(sk, (supply.get(sk) ?? 0) + 1);
+    const demand = new Map<string, number>();
+    for (const sq of new Set(g.members.map((m) => m.squad)))
+      for (const sk of needsOf.get(sq) ?? [])
+        if (!g.department || familyOf(sk)?.department === g.department)
+          demand.set(sk, (demand.get(sk) ?? 0) + 1);
+    const comms: Record<string, number> = {};
+    for (const { v } of vs) comms[v.comms] = (comms[v.comms] ?? 0) + 1;
+    const dominant = Object.entries(comms).sort((a, b) => b[1] - a[1])[0]?.[0];
+    return { id: g.id, vs, supply, demand, dominant };
+  });
+
+  const cells: Record<string, DomainCell[]> = {};
+  for (const f of facts)
+    cells[f.id] = FAMILIES.map((fam) => {
+      const ids = new Set(fam.skills.map((s) => s.id));
+      const needed = [...f.demand.keys()].filter((s) => ids.has(s));
+      const short = (s: string) => Math.max(0, f.demand.get(s)! - (f.supply.get(s) ?? 0));
+      return {
+        family: fam.id,
+        holders: f.vs.filter((x) => x.v.skills.some((s) => ids.has(s))).length,
+        needed: needed.length,
+        lacking: needed.filter((s) => short(s) > 0),
+        shortfall: needed.reduce((n, s) => n + short(s), 0),
+      };
+    });
+
+  const collabs: Collab[] = [];
+  for (const f of facts)
+    for (const cell of cells[f.id]) {
+      if (!cell.lacking.length) continue;
+      // The other group with the most people to spare in the lacking skills:
+      // holders beyond what its own squads need.
+      const partner = facts
+        .filter((o) => o.id !== f.id)
+        .map((o) => ({
+          o,
+          n: cell.lacking.reduce(
+            (n, s) => n + Math.max(0, (o.supply.get(s) ?? 0) - (o.demand.get(s) ?? 0)),
+            0,
+          ),
+        }))
+        .sort((a, b) => b.n - a.n)[0];
+      if (!partner || !partner.n) continue;
+      const people = partner.o.vs
+        .filter((x) => !isBorderline(x.v) && x.v.skills.some((s) => cell.lacking.includes(s)))
+        .map((x) => {
+          const proven = x.v.scores.filter((s) => s.evidence.length);
+          return {
+            person: x.p,
+            name: x.v.name ?? null,
+            skill: x.v.skills.find((s) => cell.lacking.includes(s))!,
+            comms: x.v.comms,
+            fit: x.v.comms === f.dominant,
+            spare: Math.max(0, Math.round((1 - (load.get(x.p) ?? 1)) * 100) / 100),
+            score: proven.reduce((a, s) => a + s.value, 0) / (proven.length || 1),
+          };
+        })
+        // Same way of working first, then the most proven, then the most time.
+        .sort((a, b) => Number(b.fit) - Number(a.fit) || b.score - a.score || b.spare - a.spare)
+        .slice(0, 3)
+        .map(({ score: _score, ...rest }) => rest);
+      if (!people.length) continue; // nobody there fit to share it
+      collabs.push({
+        group: f.id,
+        family: cell.family,
+        skills: cell.lacking,
+        partner: partner.o.id,
+        partnerHolders: partner.n,
+        people,
+      });
+    }
+  const short = new Map(collabs.map((c) => [c, cells[c.group].find((x) => x.family === c.family)!.shortfall]));
+  collabs.sort((a, b) => short.get(b)! - short.get(a)!);
+  return { cells, collabs };
 }
 
 export type OrgMetrics = ReturnType<typeof computeOrg>;

@@ -1,5 +1,6 @@
 import {
   IconAddressBook,
+  IconAtom,
   IconBriefcase,
   IconBuildingSkyscraper,
   IconCube3dSphere,
@@ -47,6 +48,7 @@ const LEVEL_NAMES: Record<Level, [string, string]> = {
   squad: ["Squad", "Squads"],
   chapter: ["Chapter", "Chapters"],
   guild: ["Guild", "Guilds"],
+  domain: ["Domain", "Domains"],
 };
 const LEVEL_SAYS: Record<Level, string> = {
   department: "A functional home that cuts across every tribe.",
@@ -54,6 +56,7 @@ const LEVEL_SAYS: Record<Level, string> = {
   squad: "A small team working towards one project intention.",
   chapter: "One department's people inside one tribe.",
   guild: "An interest community anyone can join, across tribes.",
+  domain: "A field of skills that cuts across every tribe, squad and department.",
 };
 const VIEW_NAMES: Record<View, string> = { metrics: "Metrics", members: "Members", "3d": "3D" };
 const STATUS_NAMES: Record<string, string> = {
@@ -115,6 +118,7 @@ function OrgPage() {
         squad: <IconUsers className={icon} />,
         chapter: <IconHierarchy2 className={icon} />,
         guild: <IconSparkles className={icon} />,
+        domain: <IconAtom className={icon} />,
       }[l],
       active: level === l,
       onClick: () => go({ level: l, groups: [] }),
@@ -141,6 +145,7 @@ function OrgPage() {
       <div className="tiles">
         {[
           [totals.people, "people"],
+          [totals.roster, "from the person roster"],
           [`${totals.tribes} · ${totals.squads}`, "tribes · squads"],
           [pct(totals.utilisation), "utilisation"],
           [totals.spareFte, "FTE free to borrow"],
@@ -432,6 +437,8 @@ function Metrics({ data }: { data: Data }) {
 
   return (
     <>
+      <Domains data={data} />
+      <Collabs data={data} />
       <Lacking data={data} />
       <Legend />
       {data.level === "department" && (
@@ -665,6 +672,7 @@ function Members({ data, search }: { data: Data; search: OrgSearch }) {
         match(m) &&
         (!needle ||
           m.person.includes(needle) ||
+          m.name?.toLowerCase().includes(needle) ||
           m.tags.some((t) => t.toLowerCase().includes(needle)) ||
           m.skills?.some((s) => skillName(s).toLowerCase().includes(needle)) ||
           m.squads.some((s) => names.squad[s].toLowerCase().includes(needle))),
@@ -707,7 +715,9 @@ function Members({ data, search }: { data: Data; search: OrgSearch }) {
             <tbody>
               {rows.slice(0, limit).map((m) => (
                 <tr key={m.person} className={m.borderline ? "warn" : m.load > 1 ? "hot" : ""}>
-                  <td>{m.person}</td>
+                  <td>
+                    <Who m={m} />
+                  </td>
                   <td>{names.department[m.department]}</td>
                   <td>
                     {m.tribes.map((t) => names.tribe[t]).join(", ")}
@@ -769,7 +779,9 @@ function Scene({ data, search }: { data: Data; search: OrgSearch }) {
             ? m.squads.find((s) => ids.has(s))
             : data.level === "chapter"
               ? m.chapter
-              : m.guilds.find((g) => ids.has(g));
+              : data.level === "guild"
+                ? m.guilds.find((g) => ids.has(g))
+                : m.families.find((f) => ids.has(f));
     const people: Placed[] = [];
     for (const row of data.members) {
       const group = groupOf(row);
@@ -803,7 +815,10 @@ function Scene({ data, search }: { data: Data; search: OrgSearch }) {
             <button className="link close" onClick={() => setSelected(null)} aria-label="Close">
               ×
             </button>
-            <h3>{person.person}</h3>
+            <h3>
+              <Who m={person} />
+            </h3>
+            {person.intention && <p className="sub">Intention: {person.intention}</p>}
             <p className="sub">
               {names.department[person.department]} · {person.tribes.map((t) => names.tribe[t]).join(", ")}
             </p>
@@ -845,5 +860,119 @@ function Scene({ data, search }: { data: Data; search: OrgSearch }) {
         )}
       </section>
     </>
+  );
+}
+
+// A person by name where the person roster names them, else by id.
+function Who({ m }: { m: MemberRow }) {
+  return (
+    <>
+      {m.name ?? m.person}
+      {m.source === "roster" && <em className="roster">roster</em>}
+      {m.name && <small>{m.person}</small>}
+    </>
+  );
+}
+
+const SHORT: Record<string, string> = {
+  software: "Software",
+  civil: "Civil",
+  geo: "Geo",
+  mer: "M&E · Rail",
+  site: "Site",
+  property: "Property",
+  landscape: "Landscape",
+  commercial: "Commercial",
+  growth: "Sales",
+  product: "Product",
+  people: "People",
+};
+
+// Groups by domains: how many people hold each, and which needed skills nobody has.
+function Domains({ data }: { data: Data }) {
+  const { rows, families, cells } = data.matrix;
+  const across = data.level === "domain" ? "tribes" : LEVEL_NAMES[data.level][1].toLowerCase();
+  return (
+    <section className="panel">
+      <h2>Domains across {across}</h2>
+      <p className="sub">
+        People in each group with a skill of the domain. Amber, −n: the group's squads need a
+        domain's skills n more times than the group has people with them; hover to see which.
+      </p>
+      <div className="scroll">
+        <table className="matrix">
+          <thead>
+            <tr>
+              <th />
+              {families.map((f) => (
+                <th key={f} title={data.names.domain[f]}>
+                  {SHORT[f] ?? f}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.slice(0, 60).map((r) => (
+              <tr key={r.id}>
+                <th>{r.name}</th>
+                {(cells[r.id] ?? []).map((c) => (
+                  <td
+                    key={c.family}
+                    className={c.lacking.length ? "lack" : c.holders ? "have" : "none"}
+                    title={
+                      c.lacking.length
+                        ? `Lacking: ${c.lacking.map(skillName).join(", ")}`
+                        : `${c.holders} people`
+                    }
+                  >
+                    {c.holders || ""}
+                    {c.shortfall > 0 && <b>−{c.shortfall}</b>}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {rows.length > 60 && <p className="sub">First 60 of {rows.length}; pick groups to narrow it.</p>}
+    </section>
+  );
+}
+
+// Who could share knowledge: a group lacking a domain's skills, the group
+// strongest in them, and the people there who work the way the first group does.
+function Collabs({ data }: { data: Data }) {
+  if (!data.collabs.length) return null;
+  const n = data.names;
+  return (
+    <section className="panel">
+      <h2>Knowledge sharing across groups</h2>
+      <p className="sub">
+        Pairings that close a domain gap without moving anyone: people strong in the skill,
+        sharing the group's way of communicating where possible (✓).
+      </p>
+      <div className="collabs">
+        {data.collabs.slice(0, 16).map((c) => (
+          <div key={`${c.group}/${c.family}`}>
+            <b>
+              {n.group[c.group]} ← {n.group[c.partner]}
+            </b>
+            <span className="sub">
+              {n.domain[c.family]}: short of {c.skills.map(skillName).join(", ")}; {c.partnerHolders}{" "}
+              to spare there
+            </span>
+            <ul>
+              {c.people.map((p) => (
+                <li key={p.person}>
+                  {p.name ?? p.person} · {skillName(p.skill)} · {p.comms}
+                  {p.fit && " ✓"}
+                  {p.spare > 0 && ` · ${pct(p.spare)} free`}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

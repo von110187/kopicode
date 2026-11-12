@@ -531,3 +531,62 @@ tr.warn td:first-child {
   padding: 6px 10px;
   font-size: 12px;
 }
+td em.roster,
+h3 em.roster {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 600;
+  background: #e3ecf7;
+  color: #2f4f7a;
+  border-radius: 999px;
+  padding: 0 6px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.matrix {
+  min-width: 720px;
+  font-size: 12px;
+}
+.matrix th {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.matrix td {
+  text-align: center;
+  border: 2px solid #fff;
+  border-radius: 6px;
+  padding: 4px 2px;
+  font-variant-numeric: tabular-nums;
+}
+.matrix td.have {
+  background: #e3eedd;
+}
+.matrix td.lack {
+  background: #f6dcae;
+}
+.matrix td.none {
+  background: #f6f2ea;
+}
+.matrix td b {
+  color: #9a4b12;
+  margin-left: 3px;
+  font-size: 11px;
+}
+.collabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+.collabs > div {
+  border: 1px solid #eee7da;
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: grid;
+  gap: 2px;
+}
+.collabs ul {
+  margin: 4px 0 0;
+  padding-left: 16px;
+  font-size: 12px;
+}

@@ -2,7 +2,7 @@
 // how to show them (metrics, members or in 3D), and the filters on people.
 import { FAMILIES, SKILLS } from "./skills";
 
-export const LEVELS = ["department", "tribe", "squad", "chapter", "guild"] as const;
+export const LEVELS = ["department", "tribe", "squad", "chapter", "guild", "domain"] as const;
 export type Level = (typeof LEVELS)[number];
 export const VIEWS = ["metrics", "members", "3d"] as const;
 export type View = (typeof VIEWS)[number];
