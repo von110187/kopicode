@@ -44,16 +44,23 @@ if (!districts.length) {
   process.exit(1);
 }
 
-// Teams are drawn in the order the page draws them (the catalogue's projects,
-// then the unlisted ones), because who is free depends on who was drawn before.
-const listed = cat.apps
-  .map((a) => ({ app: a, d: districts.find((d) => d.id === a.id) }))
-  .filter((e) => e.d);
-const unlisted = districts
-  .filter((d) => !cat.apps.some((a) => a.id === d.id))
-  .map((d) => ({ app: null, d }));
-const projects = listed.concat(unlisted);
-projects.forEach((e) => People.teamOf(e.d));
+// Teams are drawn exactly as the page draws them, from the same list.
+const entries = cat.apps
+  .map((a) => ({
+    id: a.id,
+    name: a.name,
+    app: a,
+    district: districts.find((d) => d.id === a.id) || null,
+  }))
+  .concat(
+    districts
+      .filter((d) => !cat.apps.some((a) => a.id === d.id))
+      .map((d) => ({ id: d.id, name: d.name, app: null, district: d })),
+  );
+People.staff(entries);
+const projects = entries
+  .filter((e) => e.district)
+  .map((e) => ({ app: e.app, d: e.district }));
 
 const today = new Date();
 const seats = projects.flatMap(({ app, d }) =>

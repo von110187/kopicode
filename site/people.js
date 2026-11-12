@@ -381,6 +381,63 @@ window.GTECH_PEOPLE = (function () {
     return out;
   }
 
+  /**
+   * Draws a team for every project in the list, once, in an order that does
+   * not depend on what is clicked: the scanned ones first (each as large as its
+   * git contributor count), then the catalogue's other projects, which have no
+   * repository to count, so their size and commits are invented from a seed.
+   * `list` is [{ id, name, district }], `district` null where none is scanned.
+   */
+  function staff(list) {
+    list
+      .filter(function (e) {
+        return e.district;
+      })
+      .forEach(function (e) {
+        teamOf(e.district);
+      });
+    list
+      .filter(function (e) {
+        return !e.district;
+      })
+      .forEach(function (e) {
+        var rnd = seeded("size:" + e.id);
+        teamOf({
+          id: e.id,
+          name: e.name,
+          git: {
+            contributors: 2 + Math.floor(rnd() * 2),
+            commits: 80 + Math.round(rnd() * 900),
+          },
+        });
+      });
+  }
+
+  /** The people on a project that cannot be entered, for its card. */
+  function teamCard(id) {
+    var team = teams[id];
+    if (!team) return "";
+    return (
+      '<h2 style="margin-top:14px;font-size:14px">Team</h2><table><tr><th>Person</th><th>Strongest as</th><th class="n">Spare</th></tr>' +
+      team
+        .map(function (m) {
+          return (
+            "<tr><td>" +
+            esc(m.name) +
+            '</td><td><span style="color:hsl(' +
+            m.first.hue +
+            ',55%,40%)">' +
+            esc(m.first.name) +
+            '</span></td><td class="n">' +
+            capacity(m) +
+            "%</td></tr>"
+          );
+        })
+        .join("") +
+      '</table><p class="sub" style="margin-top:8px">Invented people. Spare is the share of a week a person has left across every project they are on.</p>'
+    );
+  }
+
   function mat(c) {
     return new THREE.MeshLambertMaterial({ color: c });
   }
@@ -846,6 +903,8 @@ window.GTECH_PEOPLE = (function () {
     BEHAVIOURS: BEHAVIOURS,
     roster: roster,
     teamOf: teamOf,
+    staff: staff,
+    teamCard: teamCard,
     seats: seats,
     seatsCard: seatsCard,
     match: match,

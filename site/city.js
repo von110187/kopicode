@@ -441,6 +441,9 @@
           };
         }),
     );
+  // Every project has a team (all of it mock), drawn here once so that who is
+  // on what does not depend on which project is opened first.
+  if (window.GTECH_PEOPLE) window.GTECH_PEOPLE.staff(entries);
   var gapList = cat.gaps(
     new Date(),
     entries.filter(function (e) {
@@ -650,6 +653,7 @@
         esc(entry.name) +
         "</h2>" +
         businessHtml(entry) +
+        (window.GTECH_PEOPLE ? window.GTECH_PEOPLE.teamCard(entry.id) : "") +
         (entry.district
           ? ""
           : '<p class="sub" style="margin-top:10px">No repository scanned for it yet, so it has no inside.</p>') +
