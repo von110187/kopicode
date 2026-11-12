@@ -261,6 +261,126 @@ window.GTECH_PEOPLE = (function () {
       });
   }
 
+  // The habit a seat is best served by. Neither end of a behaviour is better
+  // in itself; a seat only makes one end the more useful.
+  var HABIT = {
+    builder: { key: "pace", high: true },
+    thinker: { key: "pace", high: false },
+    connector: { key: "together", high: true },
+    guardian: { key: "review", high: true },
+  };
+  var SPARE = 40; // % of a week, the least that counts as having time
+  var SHORTLIST = 8;
+
+  /**
+   * Everyone not already on the project, scored for one of its seats, best
+   * first. A score is behaviour (40), intention (40) and time (20), each part
+   * kept so the card can show where the number came from. A seat with no
+   * business area leaves that part out and scores out of what is left.
+   * The invented quality figure plays no part.
+   */
+  function match(seat, d, filters) {
+    filters = filters || {};
+    var team = teamOf(d);
+    var t = seat.trait;
+    var habit = HABIT[t.key];
+    var b = BEHAVIOURS.filter(function (x) {
+      return x.key === habit.key;
+    })[0];
+    var path = t.key === "connector" ? "lead" : "specialise";
+    return roster
+      .filter(function (p) {
+        if (
+          team.some(function (m) {
+            return m.id === p.id;
+          })
+        )
+          return false;
+        if (filters.open && !p.intention.openToMove) return false;
+        if (filters.spare && capacity(p) < SPARE) return false;
+        if (filters.area && seat.area && p.intention.area !== seat.area)
+          return false;
+        return true;
+      })
+      .map(function (p) {
+        var strength = p.scores[TRAITS.indexOf(t)];
+        var v = p.behaviour[habit.key];
+        var parts = [
+          {
+            group: "Behaviour",
+            says: t.name + " strength " + strength,
+            got: Math.round(strength * 0.25),
+            of: 25,
+          },
+          {
+            group: "Behaviour",
+            says:
+              b.name.toLowerCase() + " " + (v < 50 ? b.low : b.high),
+            got: Math.round((habit.high ? v : 100 - v) * 0.15),
+            of: 15,
+          },
+          {
+            group: "Intention",
+            says:
+              "wants to grow as a " + p.intention.grow.name.toLowerCase(),
+            got: p.intention.grow.key === t.key ? 15 : 0,
+            of: 15,
+          },
+          {
+            group: "Intention",
+            says: p.intention.openToMove
+              ? "open to joining another project"
+              : "wants to stay where they are",
+            got: p.intention.openToMove ? 10 : 0,
+            of: 10,
+          },
+          {
+            group: "Intention",
+            says: p.intention.path.says,
+            got: p.intention.path.key === path ? 5 : 0,
+            of: 5,
+          },
+          {
+            group: "Time",
+            says: capacity(p) + "% of a week spare",
+            got: Math.round(capacity(p) * 0.2),
+            of: 20,
+          },
+        ];
+        if (seat.area)
+          parts.splice(3, 0, {
+            group: "Intention",
+            says: "drawn to " + p.intention.area + " work",
+            got: p.intention.area === seat.area ? 10 : 0,
+            of: 10,
+          });
+        var got = 0;
+        var of = 0;
+        parts.forEach(function (x) {
+          got += x.got;
+          of += x.of;
+        });
+        return { person: p, parts: parts, score: Math.round((got / of) * 100) };
+      })
+      .sort(function (x, y) {
+        return y.score - x.score || (x.person.id < y.person.id ? -1 : 1);
+      });
+  }
+
+  /** A match's parts added up by group: [{ group, got, of }]. */
+  function groups(m) {
+    var out = [];
+    m.parts.forEach(function (x) {
+      var g = out.filter(function (o) {
+        return o.group === x.group;
+      })[0];
+      if (!g) out.push((g = { group: x.group, got: 0, of: 0 }));
+      g.got += x.got;
+      g.of += x.of;
+    });
+    return out;
+  }
+
   function mat(c) {
     return new THREE.MeshLambertMaterial({ color: c });
   }
@@ -404,37 +524,9 @@ window.GTECH_PEOPLE = (function () {
     });
   };
 
-  function card(p, d, team) {
-    var teamQuality = Math.round(
-      team.reduce(function (n, o) {
-        return n + o.quality;
-      }, 0) / team.length,
-    );
-    var others = p.projects.filter(function (o) {
-      return o.id !== d.id;
-    });
+  /** What a person is like and what they want: traits, behaviour, intention. */
+  function profile(p, others) {
     return (
-      "<h2>" +
-      esc(p.name) +
-      '</h2><p class="sub">' +
-      esc(p.first.role) +
-      " · " +
-      esc(d.name) +
-      " · invented person</p>" +
-      "<p>" +
-      esc(p.first.name) +
-      " first, " +
-      esc(p.second.name.toLowerCase()) +
-      " second: " +
-      esc(p.first.says) +
-      ".</p>" +
-      '<div class="facts"><div><b>' +
-      p.contributions.toLocaleString("en-US") +
-      "</b><span>contributions</span></div><div><b>" +
-      p.quality +
-      "</b><span>quality / 100</span></div><div><b>" +
-      teamQuality +
-      "</b><span>team quality</span></div></div>" +
       "<table>" +
       TRAITS.map(function (t, i) {
         return (
@@ -478,14 +570,49 @@ window.GTECH_PEOPLE = (function () {
       capacity(p) +
       "% of a week spare.</p>" +
       (others.length
-        ? '<p class="sub">Also on ' +
+        ? '<p class="sub">' + (p.contributions ? "Also on " : "Now on ") +
           others
             .map(function (o) {
               return esc(o.name);
             })
             .join(", ") +
           ".</p>"
-        : "") +
+        : "")
+    );
+  }
+
+  function card(p, d, team) {
+    var teamQuality = Math.round(
+      team.reduce(function (n, o) {
+        return n + o.quality;
+      }, 0) / team.length,
+    );
+    var others = p.projects.filter(function (o) {
+      return o.id !== d.id;
+    });
+    return (
+      "<h2>" +
+      esc(p.name) +
+      '</h2><p class="sub">' +
+      esc(p.first.role) +
+      " · " +
+      esc(d.name) +
+      " · invented person</p>" +
+      "<p>" +
+      esc(p.first.name) +
+      " first, " +
+      esc(p.second.name.toLowerCase()) +
+      " second: " +
+      esc(p.first.says) +
+      ".</p>" +
+      '<div class="facts"><div><b>' +
+      p.contributions.toLocaleString("en-US") +
+      "</b><span>contributions</span></div><div><b>" +
+      p.quality +
+      "</b><span>quality / 100</span></div><div><b>" +
+      teamQuality +
+      "</b><span>team quality</span></div></div>" +
+      profile(p, others) +
       '<p class="sub" style="margin-top:10px">Mock data. This person, the four traits, the behaviour, the intention, the contributions and the quality figures are invented from a seed; nothing is read from git, HR or an interview.</p>'
     );
   }
@@ -497,9 +624,11 @@ window.GTECH_PEOPLE = (function () {
       (list.length
         ? "<table>" +
           list
-            .map(function (s) {
+            .map(function (s, i) {
               return (
-                '<tr><td style="width:84px"><b style="color:hsl(' +
+                '<tr data-seat="' +
+                i +
+                '" style="cursor:pointer"><td style="width:84px"><b style="color:hsl(' +
                 s.trait.hue +
                 ',55%,40%)">' +
                 esc(s.trait.name) +
@@ -518,7 +647,128 @@ window.GTECH_PEOPLE = (function () {
       THIN_TESTS +
       "% tests, no commit in " +
       QUIET_DAYS +
-      " days, no owner, or a trait nobody on the team has. The tests and commit figures are read from the repository; the team is invented.</p>"
+      " days, no owner, or a trait nobody on the team has. The tests and commit figures are read from the repository; the team is invented. Click a seat for who could take it.</p>"
+    );
+  }
+
+  var BACK =
+    'style="border:0;background:none;padding:0;margin:0 0 8px;color:#5d6a62;font:inherit;font-size:12px;cursor:pointer;text-decoration:underline"';
+  var NO_SCORE =
+    '<p class="sub" style="margin-top:10px">Mock data, scored by rule: behaviour 40, intention 40 (30 where the seat has no business area), time 20, shown as a share of 100. Every person is invented, so the ranking shows how the match works and says nothing about anyone real. The quality figure is not used.</p>';
+
+  /** The people who could take a seat, best first, with the filters above them. */
+  function shortlistCard(seat, d, list, filters) {
+    filters = filters || {};
+    var box = function (key, text) {
+      return (
+        '<label style="display:block;font-size:12px;margin:2px 0;cursor:pointer"><input type="checkbox" data-filter="' +
+        key +
+        '"' +
+        (filters[key] ? " checked" : "") +
+        "> " +
+        text +
+        "</label>"
+      );
+    };
+    return (
+      "<button data-back=\"project\" " +
+      BACK +
+      ">← " +
+      esc(d.name) +
+      "</button><h2>" +
+      esc(seat.trait.name) +
+      ' seat</h2><p class="sub">' +
+      esc(seat.trait.role) +
+      (seat.area ? " · " + esc(seat.area) : "") +
+      " · " +
+      esc(seat.reasons.join("; ")) +
+      "</p>" +
+      box("open", "Open to joining another project") +
+      box("spare", "At least " + SPARE + "% of a week spare") +
+      (seat.area ? box("area", "Drawn to " + esc(seat.area) + " work") : "") +
+      (list.length
+        ? '<table style="margin-top:8px"><tr><th>Person</th><th class="n">Fit</th></tr>' +
+          list
+            .slice(0, SHORTLIST)
+            .map(function (m) {
+              return (
+                '<tr data-candidate="' +
+                m.person.id +
+                '" style="cursor:pointer"><td>' +
+                esc(m.person.name) +
+                '<br><span class="sub">' +
+                groups(m)
+                  .map(function (g) {
+                    return g.group.toLowerCase() + " " + g.got + "/" + g.of;
+                  })
+                  .join(" · ") +
+                '</span></td><td class="n"><b>' +
+                m.score +
+                "</b></td></tr>"
+              );
+            })
+            .join("") +
+          '</table><p class="sub" style="margin-top:8px">' +
+          Math.min(SHORTLIST, list.length) +
+          " of " +
+          list.length +
+          " people not on this team.</p>"
+        : '<p style="margin-top:8px">Nobody passes these filters.</p>') +
+      NO_SCORE
+    );
+  }
+
+  /** One person against one seat: every part of the score, then the person. */
+  function candidateCard(m, seat, d) {
+    var p = m.person;
+    return (
+      "<button data-back=\"shortlist\" " +
+      BACK +
+      ">← " +
+      esc(seat.trait.name) +
+      " seat</button><h2>" +
+      esc(p.name) +
+      '</h2><p class="sub">for the ' +
+      esc(seat.trait.name.toLowerCase()) +
+      " seat on " +
+      esc(d.name) +
+      ' · invented person</p><div class="facts"><div><b>' +
+      m.score +
+      "</b><span>fit / 100</span></div>" +
+      groups(m)
+        .slice(0, 2)
+        .map(function (g) {
+          return (
+            "<div><b>" +
+            g.got +
+            "/" +
+            g.of +
+            "</b><span>" +
+            g.group.toLowerCase() +
+            "</span></div>"
+          );
+        })
+        .join("") +
+      "</div><table>" +
+      m.parts
+        .map(function (x) {
+          return (
+            '<tr><td style="width:70px" class="sub">' +
+            x.group +
+            "</td><td>" +
+            esc(x.says) +
+            '</td><td class="n" style="width:44px">' +
+            x.got +
+            "/" +
+            x.of +
+            "</td></tr>"
+          );
+        })
+        .join("") +
+      '</table><p class="sub" style="margin:12px 0 4px">Traits</p>' +
+      profile(p, p.projects) +
+      (p.projects.length ? "" : '<p class="sub">On no project now.</p>') +
+      NO_SCORE
     );
   }
 
@@ -531,6 +781,9 @@ window.GTECH_PEOPLE = (function () {
     teamOf: teamOf,
     seats: seats,
     seatsCard: seatsCard,
+    match: match,
+    shortlistCard: shortlistCard,
+    candidateCard: candidateCard,
     capacity: capacity,
   };
 })();

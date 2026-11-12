@@ -873,6 +873,55 @@
       : "Every project is one object, its shape by what the project is. Click one to go inside.";
   }
 
+  // The seats of the project the page is inside, and the one being looked at.
+  var seats = [];
+  var seat = null;
+  var filters = {};
+  var People = window.GTECH_PEOPLE;
+
+  /** The card of the project the page is inside: its facts, its seats, its business. */
+  function showProject() {
+    var p = inside;
+    seat = null;
+    showDistrict(p.district);
+    if (People) {
+      seats = People.seats(p.district, p.entry.app, cat.problems, new Date());
+      card.innerHTML += People.seatsCard(seats);
+    }
+    card.innerHTML +=
+      '<h2 style="margin-top:14px;font-size:14px">Business</h2>' +
+      businessHtml(p.entry) +
+      DUMMY;
+  }
+
+  function showShortlist(i) {
+    if (i != null) {
+      seat = seats[i];
+      filters = {};
+    }
+    if (!seat) return;
+    selected = null;
+    paint();
+    card.hidden = false;
+    card.innerHTML = People.shortlistCard(
+      seat,
+      inside.district,
+      People.match(seat, inside.district, filters),
+      filters,
+    );
+    card.scrollTop = 0;
+  }
+
+  function showCandidate(id) {
+    // Scored without the filters, so a person is the same whatever is ticked.
+    var m = People.match(seat, inside.district).filter(function (x) {
+      return x.person.id === id;
+    })[0];
+    if (!m) return;
+    card.innerHTML = People.candidateCard(m, seat, inside.district);
+    card.scrollTop = 0;
+  }
+
   function enter(p) {
     if (inside) inside.group.visible = false;
     inside = p;
@@ -880,20 +929,7 @@
     world.visible = false;
     p.group.visible = true;
     paint();
-    showDistrict(p.district);
-    if (window.GTECH_PEOPLE)
-      card.innerHTML += window.GTECH_PEOPLE.seatsCard(
-        window.GTECH_PEOPLE.seats(
-          p.district,
-          p.entry.app,
-          cat.problems,
-          new Date(),
-        ),
-      );
-    card.innerHTML +=
-      '<h2 style="margin-top:14px;font-size:14px">Business</h2>' +
-      businessHtml(p.entry) +
-      DUMMY;
+    showProject();
     look(p.centre, p.radius);
     chips();
   }
@@ -918,8 +954,19 @@
   };
 
   card.addEventListener("click", function (e) {
+    var back = e.target.closest("[data-back]");
+    if (back)
+      return back.dataset.back === "shortlist" ? showShortlist() : showProject();
+    var box = e.target.closest("input[data-filter]");
+    if (box) {
+      filters[box.dataset.filter] = box.checked;
+      return showShortlist();
+    }
+    if (e.target.closest("label")) return; // its checkbox's own click follows
     var row = e.target.closest("tr");
     if (!row) return;
+    if (row.dataset.seat) return showShortlist(Number(row.dataset.seat));
+    if (row.dataset.candidate) return showCandidate(row.dataset.candidate);
     if (row.dataset.enter) return enter(byId(row.dataset.enter));
     if (row.dataset.entry) {
       var place = places.filter(function (p) {
@@ -1051,6 +1098,10 @@
         return f.userData.person;
       }),
     );
+  }
+  if (inside && q.has("seat") && seats[Number(q.get("seat"))]) {
+    showShortlist(Number(q.get("seat")));
+    if (q.get("candidate")) showCandidate(q.get("candidate"));
   }
   if (q.has("explode")) exploded = 1;
 
