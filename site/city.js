@@ -883,6 +883,7 @@
   var seats = [];
   var seat = null;
   var filters = {};
+  var sort = "fit";
   var People = window.GTECH_PEOPLE;
 
   /** The card of the project the page is inside: its facts, its seats, its business. */
@@ -904,17 +905,16 @@
     if (i != null) {
       seat = seats[i];
       filters = {};
+      sort = "fit";
     }
     if (!seat) return;
     selected = null;
     paint();
     card.hidden = false;
-    card.innerHTML = People.shortlistCard(
-      seat,
-      inside.district,
-      People.match(seat, inside.district, filters),
-      filters,
-    );
+    card.innerHTML = People.shortlistCard(seat, inside.district, {
+      filters: filters,
+      sort: sort,
+    });
     card.scrollTop = 0;
   }
 
@@ -963,6 +963,11 @@
     var back = e.target.closest("[data-back]");
     if (back)
       return back.dataset.back === "shortlist" ? showShortlist() : showProject();
+    var by = e.target.closest("[data-sort]");
+    if (by) {
+      sort = by.dataset.sort;
+      return showShortlist();
+    }
     var box = e.target.closest("input[data-filter]");
     if (box) {
       filters[box.dataset.filter] = box.checked;

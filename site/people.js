@@ -272,6 +272,50 @@ window.GTECH_PEOPLE = (function () {
   var SPARE = 40; // % of a week, the least that counts as having time
   var SHORTLIST = 8;
 
+  var READY = 70; // a trait score from which a person is strong in a role already
+  /** Why a person is left out by the filters ticked, or null where they pass. */
+  function fails(p, seat, filters) {
+    if (filters.open && !p.intention.openToMove) return "wants to stay";
+    if (filters.spare && capacity(p) < SPARE)
+      return capacity(p) + "% spare";
+    if (filters.free && p.projects.length) return "on a project";
+    if (filters.ready && p.scores[TRAITS.indexOf(seat.trait)] < READY)
+      return (
+        seat.trait.name.toLowerCase() +
+        " " +
+        p.scores[TRAITS.indexOf(seat.trait)]
+      );
+    if (filters.area && seat.area && p.intention.area !== seat.area)
+      return "drawn to " + p.intention.area;
+    return null;
+  }
+
+  // The ways a shortlist can be ordered: by the whole score, or by one group
+  // of it, which answers a different question about the same people.
+  var SORTS = [
+    { key: "fit", name: "Overall", asks: "the whole score" },
+    { key: "Behaviour", name: "Ready now", asks: "strength and habit today" },
+    { key: "Intention", name: "Wants it", asks: "what they say they want" },
+    { key: "Team", name: "Fits the team", asks: "fit with the people there" },
+    { key: "Time", name: "Has time", asks: "the week they have left" },
+  ];
+  function sortValue(m, key) {
+    if (key === "fit") return m.score;
+    var g = groups(m).filter(function (x) {
+      return x.group === key;
+    })[0];
+    return g ? Math.round((g.got / g.of) * 100) : 0;
+  }
+  function ranked(list, key) {
+    return list.slice().sort(function (x, y) {
+      return (
+        sortValue(y, key) - sortValue(x, key) ||
+        y.score - x.score ||
+        (x.person.id < y.person.id ? -1 : 1)
+      );
+    });
+  }
+
   /**
    * Everyone not already on the project, scored for one of its seats, best
    * first. A score is behaviour (40), intention (40), time (20) and fit with
@@ -316,11 +360,7 @@ window.GTECH_PEOPLE = (function () {
           })
         )
           return false;
-        if (filters.open && !p.intention.openToMove) return false;
-        if (filters.spare && capacity(p) < SPARE) return false;
-        if (filters.area && seat.area && p.intention.area !== seat.area)
-          return false;
-        return true;
+        return !fails(p, seat, filters);
       })
       .map(function (p) {
         var strength = p.scores[TRAITS.indexOf(t)];
@@ -819,11 +859,30 @@ window.GTECH_PEOPLE = (function () {
     '<p class="sub" style="margin-top:10px">Mock data, scored by rule: behaviour 40, intention 40 (30 where the seat has no business area), time 20, fit with the team up to 20, shown as a share of 100. Every person is invented, so the ranking shows how the match works and says nothing about anyone real. The quality figure is not used.</p>';
 
   /** The people who could take a seat, best first, with the filters above them. */
-  function shortlistCard(seat, d, list, filters) {
-    filters = filters || {};
+  function shortlistCard(seat, d, state, backTo) {
+    var filters = (state && state.filters) || {};
+    var sort = (state && state.sort) || "fit";
+    var by = SORTS.filter(function (x) {
+      return x.key === sort;
+    })[0];
+    var all = ranked(match(seat, d), sort);
+    var list = ranked(match(seat, d, filters), sort);
+    // Who the filters took out of what would have been the list, and why.
+    var gone = all
+      .slice(0, SHORTLIST)
+      .filter(function (m) {
+        return fails(m.person, seat, filters);
+      })
+      .map(function (m) {
+        return (
+          esc(m.person.name) + " (" + esc(fails(m.person, seat, filters)) + ")"
+        );
+      });
     var a = analysis();
     var ai = a && a.seats[seat.project + "/" + seat.trait.key];
     var box = function (key, text) {
+      var only = {};
+      only[key] = true;
       return (
         '<label style="display:block;font-size:12px;margin:2px 0;cursor:pointer"><input type="checkbox" data-filter="' +
         key +
@@ -831,17 +890,21 @@ window.GTECH_PEOPLE = (function () {
         (filters[key] ? " checked" : "") +
         "> " +
         text +
-        "</label>"
+        ' <span class="sub">' +
+        match(seat, d, only).length +
+        "</span></label>"
       );
     };
     return (
       "<button data-back=\"project\" " +
       BACK +
       ">← " +
-      esc(d.name) +
+      esc(backTo || d.name) +
       "</button><h2>" +
       esc(seat.trait.name) +
-      ' seat</h2><p class="sub">' +
+      " seat" +
+      (backTo ? " · " + esc(d.name) : "") +
+      '</h2><p class="sub">' +
       esc(seat.trait.role) +
       (seat.area ? " · " + esc(seat.area) : "") +
       " · " +
@@ -860,11 +923,44 @@ window.GTECH_PEOPLE = (function () {
           byModel(a) +
           "</div>"
         : '<p class="sub">No AI analysis of this seat: run <code>node tools/analyze.mjs</code>. The ranking below is the rule\'s alone.</p>') +
-      box("open", "Open to joining another project") +
-      box("spare", "At least " + SPARE + "% of a week spare") +
-      (seat.area ? box("area", "Drawn to " + esc(seat.area) + " work") : "") +
+      '<p class="sub" style="margin:10px 0 4px">Rank by</p><div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">' +
+      SORTS.map(function (x) {
+        return (
+          '<button data-sort="' +
+          x.key +
+          '" aria-pressed="' +
+          (x.key === sort) +
+          '" style="font-size:12px;padding:3px 9px">' +
+          x.name +
+          "</button>"
+        );
+      }).join("") +
+      '</div><p class="sub" style="margin:0 0 8px">' +
+      by.name +
+      ": " +
+      by.asks +
+      '.</p><p class="sub" style="margin:0 0 4px">Only people who are</p>' +
+      box("open", "open to joining another project") +
+      box("spare", "free for at least " + SPARE + "% of a week") +
+      box("free", "on no project now") +
+      box(
+        "ready",
+        "already strong as a " +
+          esc(seat.trait.name.toLowerCase()) +
+          " (" +
+          READY +
+          "+)",
+      ) +
+      (seat.area ? box("area", "drawn to " + esc(seat.area) + " work") : "") +
+      (gone.length
+        ? '<p class="sub" style="margin:8px 0 0">Left out by this: ' +
+          gone.join(", ") +
+          ".</p>"
+        : "") +
       (list.length
-        ? '<table style="margin-top:8px"><tr><th>Person</th><th class="n">Fit</th></tr>' +
+        ? '<table style="margin-top:8px"><tr><th>Person</th><th class="n">' +
+          (sort === "fit" ? "Fit" : "%") +
+          "</th></tr>" +
           list
             .slice(0, SHORTLIST)
             .map(function (m) {
@@ -875,13 +971,14 @@ window.GTECH_PEOPLE = (function () {
                 esc(m.person.name) +
                 (ai && ai.pick === m.person.id ? " · AI's pick" : "") +
                 '<br><span class="sub">' +
+                (sort === "fit" ? "" : "fit " + m.score + " · ") +
                 groups(m)
                   .map(function (g) {
                     return g.group.toLowerCase() + " " + g.got + "/" + g.of;
                   })
                   .join(" · ") +
                 '</span></td><td class="n"><b>' +
-                m.score +
+                sortValue(m, sort) +
                 "</b></td></tr>"
               );
             })
@@ -890,7 +987,9 @@ window.GTECH_PEOPLE = (function () {
           Math.min(SHORTLIST, list.length) +
           " of " +
           list.length +
-          " people not on this team.</p>"
+          " who pass, from " +
+          all.length +
+          " people not on this team. The number beside a filter is how many it would leave on its own.</p>"
         : '<p style="margin-top:8px">Nobody passes these filters.</p>') +
       NO_SCORE
     );
