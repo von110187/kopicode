@@ -203,7 +203,7 @@ window.GTECH_AGENT = (function () {
         "Its running cost is taken as the median of today's projects (" +
           rm(cost) +
           " a month). It is a placeholder, not an estimate of this project.",
-        "It has no place in the world until it has a repository.",
+        "Its place in the world is a fenced plot, with nothing inside until it has a repository.",
       ],
     };
   }

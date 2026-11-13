@@ -853,6 +853,8 @@
       if (!inside && !fp) hint.textContent = says || WORLD_HINT;
     });
 
+  var trees = []; // kept, so a new project can clear the ground it is built on
+
   // ---- The ground between the projects: a path from each to its neighbours, and
   // trees wherever nothing stands. Drawn from a count of their own, so the people's
   // places, which are drawn from another, stay where they were.
@@ -903,6 +905,7 @@
       tree.scale.setScalar(0.8 + r() * 0.9);
       tree.rotation.y = r() * 6;
       world.add(tree);
+      trees.push(tree);
       planted++;
     }
   })();
@@ -1884,10 +1887,100 @@
     if (where) look(where.spot.position.clone().setY(4), 46);
   }
   /** Applies a move to the city, or takes it back: the figures follow on every card, and the world shows it where it can. */
+  // ---- What an applied move looks like in the world.
+  // A merge: the retired product's users cross to the one kept, as dots along an arc.
+  var flows = [];
+  function flowBetween(a, b) {
+    var from = a.spot.position.clone().setY(9);
+    var to = b.spot.position.clone().setY(9);
+    var top = from.clone().add(to).multiplyScalar(0.5).setY(9 + from.distanceTo(to) * 0.35);
+    var curve = new THREE.QuadraticBezierCurve3(from, top, to);
+    var group = new THREE.Group();
+    group.add(
+      new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(curve.getPoints(48)),
+        new THREE.LineBasicMaterial({ color: 0x1b5e8a, transparent: true, opacity: 0.5 }),
+      ),
+    );
+    var dots = [];
+    var blue = new THREE.MeshBasicMaterial({ color: 0x1b8ad6 });
+    for (var i = 0; i < 10; i++) {
+      var dot = new THREE.Mesh(new THREE.SphereGeometry(0.75, 12, 8), blue);
+      dot.position.copy(curve.getPoint(i / 10));
+      group.add(dot);
+      dots.push(dot);
+    }
+    world.add(group);
+    var flow = { group: group, curve: curve, dots: dots };
+    flows.push(flow);
+    return flow;
+  }
+  // A start: a plot is fenced off on the next free ground, and its team walks over.
+  var started = {};
+  function startPlot(m) {
+    var n = places.length + Object.keys(started).length;
+    var spot = new THREE.Group();
+    spot.position.set(
+      ((n % cols) - (cols - 1) / 2) * SPACING,
+      0,
+      (Math.floor(n / cols) - (rows - 1) / 2) * SPACING,
+    );
+    spot.add(at(new THREE.Mesh(new THREE.CylinderGeometry(11, 11, 0.8, 40), mat(0xeef4e6)), 0, -0.42, 0));
+    spot.add(plotOf());
+    var name = m.title.replace(/^Start a project for: /, "");
+    spot.add(at(label(name.length > 34 ? name.slice(0, 33) + "…" : name, 22), 0, 1.4, 12.5));
+    spot.add(at(label("new project", 28, "#17663f"), 0, 12, 0));
+    shade(spot);
+    world.add(spot);
+    var cleared = trees.filter(function (t) {
+      return t.visible && Math.hypot(t.position.x - spot.position.x, t.position.z - spot.position.z) < 15;
+    });
+    cleared.forEach(function (t) {
+      t.visible = false;
+    });
+    var team = m.people
+      .map(function (who) {
+        return walkers.filter(function (w) {
+          return w.person.name === who.name;
+        })[0];
+      })
+      .filter(Boolean)
+      .map(function (w) {
+        var was = { w: w, homes: w.homes, hi: w.hi, lead: w.lead };
+        w.homes = [spot.position];
+        w.hi = 0;
+        w.lead = null;
+        w.wait = 0;
+        return was;
+      });
+    return { spot: spot, cleared: cleared, team: team };
+  }
+  function endPlot(s) {
+    world.remove(s.spot);
+    s.cleared.forEach(function (t) {
+      t.visible = true;
+    });
+    s.team.forEach(function (was) {
+      was.w.homes = was.homes;
+      was.w.hi = was.hi;
+      was.w.lead = was.lead;
+      was.w.wait = 0;
+    });
+  }
+
   function applyMove(id) {
     var m = moveOf(id);
     if (!m) return;
     var on = (applied[id] = !applied[id]);
+    if (m.kind === "start") {
+      if (on) {
+        started[id] = startPlot(m);
+        if (!fp) look(started[id].spot.position.clone().setY(4), 52);
+      } else if (started[id]) {
+        endPlot(started[id]);
+        delete started[id];
+      }
+    }
     if (m.kind === "staff") {
       // The people who fit walk over, and the project's stall tag comes down.
       var staffed = placeOf(m.flare);
@@ -1909,6 +2002,17 @@
       }
       if (retired && retired.mergeTag) retired.mergeTag.visible = on;
       if (retired && retired.stallTag) retired.stallTag.visible = !on;
+      var kept = placeOf(m.places[0]);
+      if (retired && kept && on && !retired.flow) {
+        retired.flow = flowBetween(retired, kept);
+        var between = retired.spot.position.clone().add(kept.spot.position).multiplyScalar(0.5).setY(4);
+        if (!fp) look(between, retired.spot.position.distanceTo(kept.spot.position) * 1.1 + 52);
+      }
+      if (retired && retired.flow && !on) {
+        world.remove(retired.flow.group);
+        flows.splice(flows.indexOf(retired.flow), 1);
+        retired.flow = null;
+      }
     }
     showMove(id);
   }
@@ -2450,7 +2554,14 @@
   function frame() {
     requestAnimationFrame(frame);
     var t = clock.getElapsedTime();
-    if (!still) clouds.rotation.y = t * 0.006;
+    if (!still) {
+      clouds.rotation.y = t * 0.006;
+      flows.forEach(function (f) {
+        f.dots.forEach(function (dot, i) {
+          dot.position.copy(f.curve.getPoint((t * 0.16 + i / f.dots.length) % 1));
+        });
+      });
+    }
     if (inside) {
       exploded = still
         ? explodeGoal
