@@ -261,6 +261,13 @@
 
   // ---- What a project's object says about its state, beside what it is.
   var QUIET = 90; // days with no commit, after which the object goes dark and overgrown
+  // The stall rule, fitted and tested on real repositories by tools/backtest.mjs: a project
+  // idle this many days or more is predicted to have no commit in the next 30.
+  var STALL = window.GTECH_STALL || null;
+  // The agent's moves (agent.js) as last worked out, and which of them are applied to the city.
+  var Agent = window.GTECH_AGENT || null;
+  var agentMoves = [];
+  var applied = {};
   var THIN = 10; // % of source files that are tests, under which it is taped off
   var YOUNG = 150; // commits, under which the scaffolding is still up
 
@@ -281,6 +288,8 @@
       share: share,
       thin: share != null && share < THIN,
       unowned: !!(entry.app && !entry.app.owner),
+      // Idle long enough for the rule, and not yet so long that it is already overgrown.
+      stalling: !!STALL && !precode && quiet != null && quiet >= STALL.rule.idleDays && quiet <= QUIET,
     };
   }
 
@@ -629,6 +638,11 @@
     }
     var spot = new THREE.Group();
     if (p.flag) spot.add(p.flag);
+    // An amber tag over a project the stall rule marks, above its gaps where it has any.
+    if (p.state && p.state.stalling) {
+      p.stallTag = at(label("likely to stall", 28, "#9a5b00"), 0, p.flag ? 20.6 : 17, 0);
+      spot.add(p.stallTag);
+    }
     // A dot above a project for each seat it has open, in the colour of the trait it needs.
     var P = window.GTECH_PEOPLE;
     if (P && !entry.problem) {
@@ -1130,28 +1144,108 @@
     return i < 0 ? GAP_ORDER.length : i;
   }
 
+  /** The business problems a project works on, by name. */
+  function problemNames(entry) {
+    return (entry.app ? entry.app.problems : []).map(function (id) {
+      var problem = cat.problems.filter(function (x) {
+        return x.id === id;
+      })[0];
+      return problem ? problem.name : id;
+    });
+  }
+  /** The projects the stall rule marks, but for one an applied move of the agent's has staffed or retired. */
+  function stalling() {
+    return places.filter(function (p) {
+      return p.state && p.state.stalling && !applied["staff:" + p.entry.id] && !applied["merge:" + p.entry.id];
+    });
+  }
+  /** What the catalogue costs a month. */
+  function costNow() {
+    return cat.apps.reduce(function (n, a) {
+      return n + a.costMonth;
+    }, 0);
+  }
+
+  /** The projects the stall rule marks, longest idle first, each with the business problems it works on, and how the rule did where it was tested. */
+  function stallOf() {
+    if (!STALL) return "";
+    var rows = stalling()
+      .sort(function (a, b) {
+        return b.state.quiet - a.state.quiet;
+      });
+    if (!rows.length) return "";
+    return (
+      '<table><tr><th>Likely to stall</th><th class="n">Idle</th></tr>' +
+      rows
+        .map(function (p) {
+          var risk = problemNames(p.entry);
+          return (
+            '<tr data-entry="' +
+            esc(p.entry.id) +
+            '"><td>' +
+            esc(p.entry.name) +
+            (risk.length
+              ? '<br><span style="color:var(--muted);font-size:11px">at risk: ' + esc(risk.join("; ")) + "</span>"
+              : "") +
+            '</td><td class="n" style="white-space:nowrap">' +
+            p.state.quiet +
+            " days</td></tr>"
+          );
+        })
+        .join("") +
+      '</table><p class="sub" style="margin:8px 0 0">Predicted: no commit in the next 30 days, for a project idle ' +
+      STALL.rule.idleDays +
+      " days or more. Tested on " +
+      STALL.repositories +
+      " real repositories, none of them GTech's: right " +
+      STALL.test.right +
+      " of " +
+      STALL.test.of +
+      " times. The idle days here are dummy.</p>"
+    );
+  }
+
   function showBusiness() {
     var live = cat.apps;
     // Repositories scanned here that the catalogue does not list: the home page cannot see them.
     var unlisted = gapList.filter(function (g) {
       return g.rule === "unlisted";
     }).length;
-    var cost = live.reduce(function (n, a) {
-      return n + a.costMonth;
-    }, 0);
     var short = shortOf();
+    var stall = stallOf();
+    // The figures as the agent's applied moves leave them; with none applied, as they are.
+    var base = agentBase();
+    var now = Agent ? Agent.after(base, agentMoves, applied) : base;
+    var moved = agentMoves.filter(function (m) {
+      return applied[m.id];
+    });
+    var closed = {};
+    moved.forEach(function (m) {
+      m.closes.forEach(function (says) {
+        closed[says] = true;
+      });
+    });
     card.hidden = false;
     card.innerHTML =
       "<h2>GTech at a glance</h2>" +
       '<div class="facts"><div><b>' +
       live.length +
       "</b><span>apps and services</span></div><div><b>" +
-      rm(cost) +
+      rm(now.cost) +
       "</b><span>a month (dummy)</span></div><div><b>" +
-      gapList.length +
+      now.gaps +
       "</b><span>gaps" +
-      (unlisted ? ": " + (gapList.length - unlisted) + " in the catalogue, " + unlisted + " outside it" : "") +
+      (unlisted ? ": " + (now.gaps - unlisted) + " in the catalogue, " + unlisted + " outside it" : "") +
       "</span></div></div>" +
+      (moved.length
+        ? '<p class="sub" style="margin:0 0 10px">With ' +
+          moved.length +
+          " of the agent's moves applied. Before them: " +
+          base.gaps +
+          " gaps, " +
+          rm(base.cost) +
+          " a month.</p>"
+        : "") +
       // The gaps lead the card: they are what a business viewer came for.
       "<table><tr><th>Gaps, by rule</th></tr>" +
       gapList
@@ -1172,6 +1266,7 @@
         })
         .join("") +
       "</table>" +
+      (stall ? '<div style="margin-top:12px">' + stall + "</div>" : "") +
       (short ? '<div style="margin-top:12px">' + short + "</div>" : "") +
       '<table style="margin-top:12px"><tr><th>Project</th><th>Status</th><th class="n">Users</th><th class="n">RM / month</th></tr>' +
       live
@@ -1193,6 +1288,11 @@
         .join("") +
       "</table>" +
       DUMMY;
+    // A gap an applied move closes is struck through, not taken out, so what changed can be seen.
+    Array.prototype.forEach.call(card.querySelectorAll("tr > td:only-child"), function (td) {
+      if (closed[td.textContent.replace(/ \(dummy\)$/, "")])
+        td.style.cssText = "text-decoration:line-through;color:var(--muted)";
+    });
   }
 
   function showWorld() {
@@ -1370,7 +1470,7 @@
       ? "A building is one app or package, a floor one module, as tall as its file count. Drag to orbit, scroll to zoom, click a floor."
       : WORLD_HINT;
     // The tour and the map key belong to the world view.
-    ["tour", "key"].forEach(function (id) {
+    ["tour", "agent", "key"].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) el.hidden = !!inside;
     });
@@ -1487,6 +1587,123 @@
     document.getElementById("staffing").addEventListener("click", showStaffing);
   else document.getElementById("staffing").hidden = true;
 
+  // ---- The agent: its moves are worked out by agent.js; here they are shown, and
+  // applied to the city or taken back.
+  var placeOf = function (id) {
+    return places.filter(function (p) {
+      return p.entry.id === id;
+    })[0];
+  };
+  /** The figures the moves are set against: as the city is, with no move applied. */
+  function agentBase() {
+    return {
+      gaps: gapList.length,
+      cost: costNow(),
+      stall: places.filter(function (p) {
+        return p.state && p.state.stalling;
+      }).length,
+    };
+  }
+  /** What the moves are worked out from: the catalogue, its gaps, the stalling projects with an open seat and who fits it, and the people on no project. */
+  function agentWorld() {
+    return {
+      apps: cat.apps,
+      problems: cat.problems,
+      gaps: gapList,
+      stallingIds: places
+        .filter(function (p) {
+          return p.state && p.state.stalling;
+        })
+        .map(function (p) {
+          return p.entry.id;
+        }),
+      stalling: !People
+        ? []
+        : places
+            .filter(function (p) {
+              return p.state && p.state.stalling && p.openSeats && p.openSeats.length;
+            })
+            .map(function (p) {
+              var d = p.district || People.projectOf(p.entry.id);
+              return {
+                id: p.entry.id,
+                name: p.entry.name,
+                app: p.entry.app,
+                quiet: p.state.quiet,
+                seat: p.openSeats[0].trait.name,
+                problems: problemNames(p.entry),
+                candidates: People.match(p.openSeats[0], d)
+                  .slice(0, 2)
+                  .map(function (m) {
+                    return { name: m.person.name, score: m.score, spare: People.capacity(m.person) };
+                  }),
+              };
+            }),
+      free: !People
+        ? []
+        : People.roster
+            .filter(function (p) {
+              return !p.projects.length;
+            })
+            .map(function (p) {
+              return { name: p.name, area: p.intention.area, spare: People.capacity(p) };
+            }),
+    };
+  }
+  function showAgent() {
+    setGhost(null);
+    selected = null;
+    paint();
+    agentMoves = Agent.moves(agentWorld());
+    card.hidden = false;
+    card.innerHTML = Agent.listCard(agentMoves, applied, agentBase());
+    card.scrollTop = 0;
+  }
+  var moveOf = function (id) {
+    return agentMoves.filter(function (m) {
+      return m.id === id;
+    })[0];
+  };
+  function showMove(id) {
+    var m = moveOf(id);
+    if (!m) return showAgent();
+    card.innerHTML = Agent.moveCard(m, agentMoves, applied, agentBase());
+    card.scrollTop = 0;
+    var where = placeOf(m.places[0]);
+    if (where) look(where.spot.position.clone().setY(4), 46);
+  }
+  /** Applies a move to the city, or takes it back: the figures follow on every card, and the world shows it where it can. */
+  function applyMove(id) {
+    var m = moveOf(id);
+    if (!m) return;
+    var on = (applied[id] = !applied[id]);
+    if (m.kind === "staff") {
+      // The people who fit walk over, and the project's stall tag comes down.
+      var staffed = placeOf(m.flare);
+      if (staffed.stallTag) staffed.stallTag.visible = !on;
+      if (on) sendFlare(staffed, 0);
+      else sendHome();
+    }
+    if (m.kind === "merge") {
+      // The retired product says where it is going.
+      var retired = placeOf(m.retire);
+      if (retired && on && !retired.mergeTag) {
+        retired.mergeTag = at(
+          label("merging into " + placeOf(m.places[0]).entry.name, 26, "#1b5e8a"),
+          0,
+          retired.flag ? 24.2 : 20.6,
+          0,
+        );
+        retired.spot.add(retired.mergeTag);
+      }
+      if (retired && retired.mergeTag) retired.mergeTag.visible = on;
+      if (retired && retired.stallTag) retired.stallTag.visible = !on;
+    }
+    showMove(id);
+  }
+  if (Agent) document.getElementById("agent").addEventListener("click", showAgent);
+  else document.getElementById("agent").hidden = true;
+
   /** Opens one seat of one project from the staffing card, which is where back leads. */
   function openSeat(key) {
     var id = key.slice(0, key.lastIndexOf("/"));
@@ -1567,6 +1784,10 @@
       filters[box.dataset.filter] = box.checked;
       return showShortlist();
     }
+    var apply = e.target.closest("[data-apply]");
+    if (apply) return applyMove(apply.dataset.apply);
+    if (e.target.closest("[data-agent]")) return showAgent();
+    if (e.target.closest("[data-agent-home]")) return showWorld();
     if (e.target.closest("label")) return; // its checkbox's own click follows
     var row = e.target.closest("tr");
     if (!row) return;
@@ -1580,6 +1801,7 @@
       }
       return;
     }
+    if (row.dataset.move) return showMove(row.dataset.move);
     if (row.dataset.open) return openSeat(row.dataset.open);
     if (row.dataset.who) {
       card.innerHTML = People.personCard(row.dataset.who, "Staffing");

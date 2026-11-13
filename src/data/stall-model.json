@@ -1,0 +1,37 @@
+{
+  "predicts": "no commit in the next 30 days",
+  "rule": {
+    "idleDays": 9,
+    "says": "idle 9 days or more"
+  },
+  "fittedOn": "2026-11-12",
+  "repositories": 19,
+  "moments": 91,
+  "quietShare": 0.857,
+  "test": {
+    "how": "each repository held out in turn, N chosen on the others",
+    "chosenBetween": [
+      7,
+      9
+    ],
+    "right": 86,
+    "of": 91,
+    "quietCaught": 0.987,
+    "busyCaught": 0.692,
+    "balanced": 0.84
+  },
+  "alwaysQuiet": {
+    "right": 78,
+    "of": 91,
+    "quietCaught": 1,
+    "busyCaught": 0,
+    "balanced": 0.5
+  },
+  "noCommitThisMonth": {
+    "right": 56,
+    "of": 91,
+    "quietCaught": 0.577,
+    "busyCaught": 0.846,
+    "balanced": 0.712
+  }
+}

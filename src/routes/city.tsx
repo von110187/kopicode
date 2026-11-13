@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { catalogue } from "~/data/catalogue";
+import stall from "~/data/stall-model.json";
 import { ViewSwitch } from "~/components/ViewSwitch";
 import { createFigureKit, type FigureKit } from "~/three/figure-kit";
 import cityCss from "~/styles/city.css?url";
@@ -17,6 +18,7 @@ declare global {
   interface Window {
     GTECH_CATALOGUE?: typeof catalogue;
     GTECH_DISTRICT_IDS?: string[];
+    GTECH_STALL?: typeof stall;
     GTECH_FIGURES?: FigureKit;
     THREE?: unknown;
   }
@@ -43,6 +45,7 @@ function City() {
     if (started) return;
     started = true;
     window.GTECH_CATALOGUE = catalogue;
+    window.GTECH_STALL = stall; // the stall rule and how it did, for city.js to mark projects by
     (async () => {
       await load("vendor/three.min.js");
       await load("vendor/OrbitControls.js");
@@ -54,6 +57,7 @@ function City() {
       await load("dummy.js"); // a dummy inside for each project with no scanned repository
       await load("analysis.js"); // written by tools/analyze.mjs; the page works without it
       await load("people.js");
+      await load("agent.js"); // the agent's moves, worked out by rule
       await load("city.js");
     })();
   }, []);
@@ -79,6 +83,9 @@ function City() {
           Tour
         </button>
         <button id="staffing">Staffing</button>
+        <button id="agent" className="lead">
+          Agent
+        </button>
         <button id="motion" aria-pressed="false" hidden>
           Play motion
         </button>
@@ -91,6 +98,7 @@ function City() {
         <span>Taped off: under 10% tests</span>
         <span>Scaffolding: a young project</span>
         <span>A pennant: short of someone</span>
+        <span>Amber tag: predicted to stall</span>
         <span>To let: planned, no code yet</span>
       </div>
       <div id="hint">
