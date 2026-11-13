@@ -2445,6 +2445,9 @@
     camera.updateProjectionMatrix();
     camera.rotation.order = "YXZ";
     controls.enabled = false;
+    if (minimap) minimap.hidden = false;
+    if (stick) stick.hidden = !touchy;
+    if (tip) tip.hidden = true;
     walkBtn.textContent = "Leave walk";
     walkBtn.setAttribute("aria-pressed", "true");
     hint.textContent = fp.rider
@@ -2461,6 +2464,9 @@
     if (fp.rider) fp.rider.fig.visible = true;
     fp = null;
     keys = {};
+    push.x = push.y = 0;
+    if (minimap) minimap.hidden = true;
+    if (stick) stick.hidden = true;
     camera.fov = 40;
     camera.updateProjectionMatrix();
     controls.enabled = true;
@@ -2491,9 +2497,9 @@
       var on = function (a, b) {
         return keys[a] || keys[b] ? 1 : 0;
       };
-      var fwd = on("KeyW", "ArrowUp") - on("KeyS", "ArrowDown");
+      var fwd = on("KeyW", "ArrowUp") - on("KeyS", "ArrowDown") - push.y;
       var side = on("KeyD") - on("KeyA");
-      fp.yaw += (on("ArrowLeft") - on("ArrowRight")) * 1.8 * dt;
+      fp.yaw += (on("ArrowLeft") - on("ArrowRight") - push.x) * 1.8 * dt;
       var step = (on("ShiftLeft", "ShiftRight") ? 30 : 14) * dt;
       var sin = Math.sin(fp.yaw);
       var cos = Math.cos(fp.yaw);
@@ -2517,6 +2523,7 @@
     }
     camera.position.set(fp.x, EYE + bob, fp.z);
     camera.rotation.set(fp.pitch, fp.rider ? fp.head + Math.PI + fp.turn : fp.yaw, 0);
+    drawMap();
   }
   if (walkBtn) {
     walkBtn.addEventListener("click", function () {
@@ -2544,6 +2551,134 @@
       fp.pitch = Math.max(-1.1, Math.min(1.1, fp.pitch - e.movementY * 0.004));
     });
   }
+
+  // A stick for a touch screen, which has no keys: up and down walk, left and right turn.
+  var stick = document.getElementById("stick");
+  var push = { x: 0, y: 0 };
+  var touchy = matchMedia("(pointer: coarse)").matches || q.has("stick");
+  if (stick) {
+    var knob = stick.firstElementChild;
+    var lean = function (e) {
+      var box = stick.getBoundingClientRect();
+      var x = (e.clientX - box.left) / box.width - 0.5;
+      var y = (e.clientY - box.top) / box.height - 0.5;
+      var far = Math.hypot(x, y);
+      if (far > 0.5) {
+        x *= 0.5 / far;
+        y *= 0.5 / far;
+      }
+      push.x = x * 2;
+      push.y = y * 2;
+      knob.style.transform = "translate(" + x * 68 + "px," + y * 68 + "px)";
+      getOff();
+    };
+    var rest = function () {
+      push.x = push.y = 0;
+      knob.style.transform = "";
+    };
+    stick.addEventListener("pointerdown", function (e) {
+      stick.setPointerCapture(e.pointerId);
+      lean(e);
+    });
+    stick.addEventListener("pointermove", function (e) {
+      if (e.buttons || e.pointerType === "touch") lean(e);
+    });
+    stick.addEventListener("pointerup", rest);
+    stick.addEventListener("pointercancel", rest);
+  }
+
+  // The map of a walk: where the projects are, which are flagged, and which way one faces.
+  var minimap = document.getElementById("minimap");
+  function drawMap() {
+    if (!minimap) return;
+    var g = minimap.getContext("2d");
+    var mid = minimap.width / 2;
+    // Drawn to the ground the projects stand on, not the whole island, so each can be told apart.
+    var k = (mid - 10) / 120;
+    g.clearRect(0, 0, minimap.width, minimap.height);
+    g.fillStyle = "#cbe3b8";
+    g.beginPath();
+    g.arc(mid, mid, 120 * k, 0, Math.PI * 2);
+    g.fill();
+    places.forEach(function (p) {
+      var st = p.state && p.state.stalling && !(p.stallTag && !p.stallTag.visible);
+      g.fillStyle = flare && flare.place === p ? "#f72c8f" : st ? "#d98a00" : p.flag ? "#d9534f" : "#ffffff";
+      g.beginPath();
+      g.arc(mid + p.spot.position.x * k, mid + p.spot.position.z * k, 11, 0, Math.PI * 2);
+      g.fill();
+    });
+    // The walker: an arrow pointing the way the camera looks.
+    var yaw = fp.rider ? fp.head + Math.PI + fp.turn : fp.yaw;
+    g.save();
+    var out = Math.max(1, Math.hypot(fp.x, fp.z) / 112);
+    g.translate(mid + (fp.x / out) * k, mid + (fp.z / out) * k);
+    g.rotate(-yaw);
+    g.fillStyle = "#3d5afe";
+    g.strokeStyle = "#ffffff";
+    g.lineWidth = 3;
+    g.beginPath();
+    g.moveTo(0, -15);
+    g.lineTo(10, 11);
+    g.lineTo(0, 5);
+    g.lineTo(-10, 11);
+    g.closePath();
+    g.stroke();
+    g.fill();
+    g.restore();
+  }
+
+  // ---- Over a project in the world, the pointer says what it is before any click.
+  var tip = document.getElementById("tip");
+  var hover = null;
+  var tipRay = new THREE.Raycaster();
+  places.forEach(function (p) {
+    p.icon.userData.tipOf = p;
+  });
+  function tipFor(p) {
+    var a = p.entry.app;
+    var n = gapsOf(p.entry.id).length;
+    var bits = [n ? n + (n > 1 ? " gaps" : " gap") : "no gap"];
+    if (a) bits.push("RM " + Math.round(a.costMonth).toLocaleString("en-MY") + " a month");
+    if (a && a.users != null) bits.push(a.users.toLocaleString("en-MY") + " users");
+    if (p.state && p.state.quiet != null) bits.push("idle " + p.state.quiet + " days");
+    return "<b>" + esc(p.entry.name) + "</b><span>" + esc(bits.join(" · ")) + "</span>";
+  }
+  if (tip)
+    renderer.domElement.addEventListener("pointermove", function (e) {
+      if (inside || fp || e.buttons || e.pointerType === "touch") {
+        tip.hidden = true;
+        hover = null;
+        renderer.domElement.style.cursor = "";
+        return;
+      }
+      tipRay.setFromCamera(
+        new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1),
+        camera,
+      );
+      var hit = tipRay.intersectObjects(
+        places.map(function (p) {
+          return p.icon;
+        }),
+        true,
+      )[0];
+      var o = hit && hit.object;
+      while (o && !o.userData.tipOf) o = o.parent;
+      var p = o ? o.userData.tipOf : null;
+      if (p !== hover) {
+        hover = p;
+        tip.hidden = !p;
+        if (p) tip.innerHTML = tipFor(p);
+        renderer.domElement.style.cursor = p ? "pointer" : "";
+      }
+      if (p) {
+        tip.style.left = Math.min(e.clientX + 14, innerWidth - 280) + "px";
+        tip.style.top = e.clientY + 16 + "px";
+      }
+    });
+  renderer.domElement.addEventListener("pointerleave", function () {
+    if (tip) tip.hidden = true;
+    hover = null;
+  });
 
   shade(world);
   places.forEach(function (p) {
