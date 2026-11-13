@@ -78,6 +78,16 @@ function City() {
         <button id="wiring" aria-pressed="true">
           Wiring
         </button>
+        <label className="view-switch" id="lens-wrap">
+          <span>Colour by</span>
+          <select id="lens" defaultValue="">
+            <option value="">Nothing</option>
+            <option value="gaps">Gaps</option>
+            <option value="cost">Cost a month</option>
+            <option value="idle">Days idle</option>
+            <option value="users">Users</option>
+          </select>
+        </label>
         <span className="rest"></span>
         <button id="tour" className="lead">
           Tour

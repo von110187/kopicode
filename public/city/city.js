@@ -736,17 +736,17 @@
       0,
       (Math.floor(i / cols) - (rows - 1) / 2) * SPACING,
     );
-    spot.add(
-      at(
-        new THREE.Mesh(
-          new THREE.CylinderGeometry(11, 11, 0.8, 40),
-          mat(0xeef4e6),
-        ),
-        0,
-        -0.42,
-        0,
+    // The ground a project stands on, kept so a lens can colour it by a figure.
+    p.pad = at(
+      new THREE.Mesh(
+        new THREE.CylinderGeometry(11, 11, 0.8, 40),
+        mat(0xeef4e6),
       ),
+      0,
+      -0.42,
+      0,
     );
+    spot.add(p.pad);
     spot.add(icon);
     if (p.state) p.dressed = dress(spot, icon, p.state);
     spot.add(at(label(entry.name, 26), 0, 1.4, 12.5));
@@ -770,6 +770,88 @@
   );
   commons.add(at(label("On no project", 22), 0, 1.4, 16.5));
   world.add(commons);
+
+  // ---- A lens: the ground under each project coloured by one figure, deeper for more,
+  // with the figure written over its name. One hue a lens; the figure is always in words too.
+  var LENSES = {
+    gaps: {
+      hue: 4,
+      says: "gaps found by rule",
+      of: function (p) {
+        return gapsOf(p.entry.id).length;
+      },
+      word: function (v) {
+        return v + (v === 1 ? " gap" : " gaps");
+      },
+    },
+    cost: {
+      hue: 265,
+      says: "cost a month (dummy)",
+      of: function (p) {
+        return p.entry.app ? p.entry.app.costMonth : null;
+      },
+      word: function (v) {
+        return "RM " + Math.round(v).toLocaleString("en-MY");
+      },
+    },
+    idle: {
+      hue: 32,
+      says: "days since the last commit",
+      of: function (p) {
+        return p.state && p.state.quiet != null ? p.state.quiet : null;
+      },
+      word: function (v) {
+        return v + (v === 1 ? " day idle" : " days idle");
+      },
+    },
+    users: {
+      hue: 212,
+      says: "users (dummy)",
+      of: function (p) {
+        return p.entry.app ? p.entry.app.users : null;
+      },
+      word: function (v) {
+        return Math.round(v).toLocaleString("en-MY") + (v === 1 ? " user" : " users");
+      },
+    },
+  };
+  function setLens(id) {
+    var lens = LENSES[id];
+    var values = places.map(function (p) {
+      return lens ? lens.of(p) : null;
+    });
+    var most = Math.max.apply(
+      null,
+      values.map(function (v) {
+        return v || 0;
+      }),
+    );
+    places.forEach(function (p, i) {
+      if (p.lensTag) {
+        p.spot.remove(p.lensTag);
+        p.lensTag.material.map.dispose();
+        p.lensTag.material.dispose();
+        p.lensTag = null;
+      }
+      var v = values[i];
+      if (!lens) return p.pad.material.color.set(0xeef4e6);
+      if (v == null) return p.pad.material.color.set(0xdcdcdc);
+      // Square-rooted, so one very large figure does not leave every other project white.
+      var t = most ? Math.sqrt(v / most) : 0;
+      p.pad.material.color.setHSL(lens.hue / 360, 0.8, 0.92 - t * 0.5);
+      p.lensTag = at(label(lens.word(v), 24, "#" + new THREE.Color().setHSL(lens.hue / 360, 0.8, 0.3).getHexString()), 0, 4.6, 12.5);
+      p.spot.add(p.lensTag);
+    });
+    return lens
+      ? "The ground under each project is coloured by " + lens.says + ": the deeper the colour, the more. Grey ground has no figure."
+      : null;
+  }
+  var lensPick = document.getElementById("lens");
+  if (lensPick)
+    lensPick.addEventListener("change", function () {
+      var says = setLens(lensPick.value);
+      if (!inside && !fp) hint.textContent = says || WORLD_HINT;
+    });
 
   // ---- The ground between the projects: a path from each to its neighbours, and
   // trees wherever nothing stands. Drawn from a count of their own, so the people's
@@ -1597,9 +1679,11 @@
       ? "A building is one app or package, a floor one module, as tall as its file count. Drag to orbit, scroll to zoom, click a floor."
       : WORLD_HINT;
     // The tour and the map key belong to the world view.
-    ["tour", "agent", "walk", "key"].forEach(function (id) {
+    ["tour", "agent", "walk", "lens-wrap", "key"].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) el.hidden = !!inside;
+      // The lens's label is laid out as a row, which the hidden attribute alone does not undo.
+      if (el && id === "lens-wrap") el.style.display = inside ? "none" : "";
     });
   }
 
