@@ -1,14 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { catalogue } from "~/data/catalogue";
+import stall from "~/data/stall-model.json";
 import { ViewSwitch } from "~/components/ViewSwitch";
 import { createFigureKit, type FigureKit } from "~/three/figure-kit";
 import cityCss from "~/styles/city.css?url";
+import extrasCss from "~/styles/city-extras.css?url";
 
 export const Route = createFileRoute("/city")({
   head: () => ({
     meta: [{ title: "GTech City · 3D" }],
-    links: [{ rel: "stylesheet", href: cityCss }],
+    links: [
+      { rel: "stylesheet", href: cityCss },
+      { rel: "stylesheet", href: extrasCss },
+    ],
   }),
   component: City,
 });
@@ -17,6 +22,7 @@ declare global {
   interface Window {
     GTECH_CATALOGUE?: typeof catalogue;
     GTECH_DISTRICT_IDS?: string[];
+    GTECH_STALL?: typeof stall;
     GTECH_FIGURES?: FigureKit;
     THREE?: unknown;
   }
@@ -43,6 +49,7 @@ function City() {
     if (started) return;
     started = true;
     window.GTECH_CATALOGUE = catalogue;
+    window.GTECH_STALL = stall; // the stall rule and how it did, for city.js to mark projects by
     (async () => {
       await load("vendor/three.min.js");
       await load("vendor/OrbitControls.js");
@@ -54,6 +61,7 @@ function City() {
       await load("dummy.js"); // a dummy inside for each project with no scanned repository
       await load("analysis.js"); // written by tools/analyze.mjs; the page works without it
       await load("people.js");
+      await load("agent.js"); // the agent's moves, worked out by rule
       await load("city.js");
     })();
   }, []);
@@ -74,16 +82,37 @@ function City() {
         <button id="wiring" aria-pressed="true">
           Wiring
         </button>
+        <label className="view-switch" id="lens-wrap">
+          <span>Colour by</span>
+          <select id="lens" defaultValue="">
+            <option value="">Nothing</option>
+            <option value="gaps">Gaps</option>
+            <option value="cost">Cost a month</option>
+            <option value="idle">Days idle</option>
+            <option value="users">Users</option>
+          </select>
+        </label>
         <span className="rest"></span>
         <button id="tour" className="lead">
           Tour
         </button>
         <button id="staffing">Staffing</button>
+        <button id="walk" aria-pressed="false">
+          Walk
+        </button>
+        <button id="agent" className="lead">
+          Agent
+        </button>
         <button id="motion" aria-pressed="false" hidden>
           Play motion
         </button>
       </div>
       <aside id="card" hidden aria-live="polite"></aside>
+      <div id="tip" hidden></div>
+      <canvas id="minimap" width={300} height={300} hidden aria-hidden="true"></canvas>
+      <div id="stick" hidden aria-label="Walk">
+        <i></i>
+      </div>
       <div id="key">
         <b>Map key</b>
         <span>The shape is what it does</span>
@@ -91,6 +120,8 @@ function City() {
         <span>Taped off: under 10% tests</span>
         <span>Scaffolding: a young project</span>
         <span>A pennant: short of someone</span>
+        <span>Amber tag: predicted to stall</span>
+        <span>To let: planned, no code yet</span>
       </div>
       <div id="hint">
         A district is a repository. A building is one app or package, a floor

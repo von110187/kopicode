@@ -34,6 +34,8 @@
   });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.setSize(innerWidth, innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   document.body.appendChild(renderer.domElement);
   var controls = new THREE.OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
@@ -43,8 +45,27 @@
 
   scene.add(new THREE.HemisphereLight(0xffffff, 0xcfc6b4, 0.95));
   var sun = new THREE.DirectionalLight(0xfff2d6, 0.55);
-  sun.position.set(60, 120, 40);
+  sun.position.set(70, 125, -85); // behind the world as it is first seen, so shade falls toward the viewer
+  // The sun's shadows cover the whole island, soft enough to read as a clear day.
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(4096, 4096);
+  sun.shadow.camera.left = sun.shadow.camera.bottom = -210;
+  sun.shadow.camera.right = sun.shadow.camera.top = 210;
+  sun.shadow.camera.near = 10;
+  sun.shadow.camera.far = 420;
+  sun.shadow.camera.updateProjectionMatrix();
+  sun.shadow.bias = -0.0004;
+  sun.shadow.normalBias = 0.6;
   scene.add(sun);
+  /** Lets every solid, lit shape under `root` cast a shadow and take one. People are left out: they have a spot of shade of their own. */
+  function shade(root) {
+    (function down(o) {
+      if (o.userData.noShade) return;
+      var m = o.material;
+      if (o.isMesh && m && m.isMeshLambertMaterial && !m.transparent) o.castShadow = o.receiveShadow = true;
+      o.children.forEach(down);
+    })(root);
+  }
   // The ground is an island floating on the sky: grass on top, earth at its edge.
   var ground = new THREE.Group();
   var grass = new THREE.Mesh(
@@ -59,7 +80,46 @@
   );
   earth.position.y = -19.9;
   ground.add(grass, earth);
+  // The grass is unlit, so shade falls on a sheet of its own just over the ground.
+  var shadeSheet = new THREE.Mesh(
+    new THREE.CircleGeometry(175, 72),
+    new THREE.ShadowMaterial({ opacity: 0.4, depthWrite: false }),
+  );
+  shadeSheet.rotation.x = -Math.PI / 2;
+  // Half a unit up: over the white ground each project stands on, and, as found by
+  // trying, as low as a broad shape's shade still falls on it whole.
+  shadeSheet.position.y = 0.5;
+  shadeSheet.receiveShadow = true;
+  shadeSheet.renderOrder = 1;
+  ground.add(shadeSheet);
   scene.add(ground);
+
+  // Clouds round the island and below its edge, drifting: it floats in the sky.
+  var clouds = new THREE.Group();
+  (function () {
+    var h = 77;
+    var r = function () {
+      h = (h * 16807) % 2147483647;
+      return h / 2147483647;
+    };
+    var white = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
+    for (var i = 0; i < 16; i++) {
+      var c = new THREE.Group();
+      var puffs = 3 + Math.floor(r() * 3);
+      for (var k = 0; k < puffs; k++) {
+        var puff = new THREE.Mesh(new THREE.SphereGeometry(7 + r() * 7, 12, 9), white);
+        puff.position.set((k - puffs / 2) * 9 + r() * 4, r() * 4, r() * 8 - 4);
+        puff.scale.y = 0.6;
+        c.add(puff);
+      }
+      var a = (i / 16) * Math.PI * 2 + r() * 0.3;
+      var far = 235 + r() * 120;
+      c.position.set(Math.cos(a) * far, -34 + r() * 44, Math.sin(a) * far);
+      c.scale.setScalar(0.8 + r() * 1.3);
+      clouds.add(c);
+    }
+  })();
+  scene.add(clouds);
 
   function colour(h, s, l) {
     return new THREE.Color().setHSL(h / 360, s, l);
@@ -261,6 +321,13 @@
 
   // ---- What a project's object says about its state, beside what it is.
   var QUIET = 90; // days with no commit, after which the object goes dark and overgrown
+  // The stall rule, fitted and tested on real repositories by tools/backtest.mjs: a project
+  // idle this many days or more is predicted to have no commit in the next 30.
+  var STALL = window.GTECH_STALL || null;
+  // The agent's moves (agent.js) as last worked out, and which of them are applied to the city.
+  var Agent = window.GTECH_AGENT || null;
+  var agentMoves = [];
+  var applied = {};
   var THIN = 10; // % of source files that are tests, under which it is taped off
   var YOUNG = 150; // commits, under which the scaffolding is still up
 
@@ -281,6 +348,8 @@
       share: share,
       thin: share != null && share < THIN,
       unowned: !!(entry.app && !entry.app.owner),
+      // Idle long enough for the rule, and not yet so long that it is already overgrown.
+      stalling: !!STALL && !precode && quiet != null && quiet >= STALL.rule.idleDays && quiet <= QUIET,
     };
   }
 
@@ -621,7 +690,7 @@
     if (flagged) {
       var flag = label(
         flagged + (flagged > 1 ? " gaps" : " gap"),
-        20,
+        30,
         "#b3261e",
       );
       flag.position.set(0, 17, 0);
@@ -629,6 +698,11 @@
     }
     var spot = new THREE.Group();
     if (p.flag) spot.add(p.flag);
+    // An amber tag over a project the stall rule marks, above its gaps where it has any.
+    if (p.state && p.state.stalling) {
+      p.stallTag = at(label("likely to stall", 28, "#9a5b00"), 0, p.flag ? 20.6 : 17, 0);
+      spot.add(p.stallTag);
+    }
     // A dot above a project for each seat it has open, in the colour of the trait it needs.
     var P = window.GTECH_PEOPLE;
     if (P && !entry.problem) {
@@ -662,17 +736,17 @@
       0,
       (Math.floor(i / cols) - (rows - 1) / 2) * SPACING,
     );
-    spot.add(
-      at(
-        new THREE.Mesh(
-          new THREE.CylinderGeometry(11, 11, 0.8, 40),
-          mat(0xeef4e6),
-        ),
-        0,
-        -0.42,
-        0,
+    // The ground a project stands on, kept so a lens can colour it by a figure.
+    p.pad = at(
+      new THREE.Mesh(
+        new THREE.CylinderGeometry(11, 11, 0.8, 40),
+        mat(0xeef4e6),
       ),
+      0,
+      -0.42,
+      0,
     );
+    spot.add(p.pad);
     spot.add(icon);
     if (p.state) p.dressed = dress(spot, icon, p.state);
     spot.add(at(label(entry.name, 26), 0, 1.4, 12.5));
@@ -697,7 +771,155 @@
   commons.add(at(label("On no project", 22), 0, 1.4, 16.5));
   world.add(commons);
 
+  // ---- A lens: the ground under each project coloured by one figure, deeper for more,
+  // with the figure written over its name. One hue a lens; the figure is always in words too.
+  var LENSES = {
+    gaps: {
+      hue: 4,
+      says: "gaps found by rule",
+      of: function (p) {
+        return gapsOf(p.entry.id).length;
+      },
+      word: function (v) {
+        return v + (v === 1 ? " gap" : " gaps");
+      },
+    },
+    cost: {
+      hue: 265,
+      says: "cost a month (dummy)",
+      of: function (p) {
+        return p.entry.app ? p.entry.app.costMonth : null;
+      },
+      word: function (v) {
+        return "RM " + Math.round(v).toLocaleString("en-MY");
+      },
+    },
+    idle: {
+      hue: 32,
+      says: "days since the last commit",
+      of: function (p) {
+        return p.state && p.state.quiet != null ? p.state.quiet : null;
+      },
+      word: function (v) {
+        return v + (v === 1 ? " day idle" : " days idle");
+      },
+    },
+    users: {
+      hue: 212,
+      says: "users (dummy)",
+      of: function (p) {
+        return p.entry.app ? p.entry.app.users : null;
+      },
+      word: function (v) {
+        return Math.round(v).toLocaleString("en-MY") + (v === 1 ? " user" : " users");
+      },
+    },
+  };
+  function setLens(id) {
+    var lens = LENSES[id];
+    var values = places.map(function (p) {
+      return lens ? lens.of(p) : null;
+    });
+    var most = Math.max.apply(
+      null,
+      values.map(function (v) {
+        return v || 0;
+      }),
+    );
+    places.forEach(function (p, i) {
+      if (p.lensTag) {
+        p.spot.remove(p.lensTag);
+        p.lensTag.material.map.dispose();
+        p.lensTag.material.dispose();
+        p.lensTag = null;
+      }
+      var v = values[i];
+      if (!lens) return p.pad.material.color.set(0xeef4e6);
+      if (v == null) return p.pad.material.color.set(0xdcdcdc);
+      // Square-rooted, so one very large figure does not leave every other project white.
+      var t = most ? Math.sqrt(v / most) : 0;
+      p.pad.material.color.setHSL(lens.hue / 360, 0.8, 0.92 - t * 0.5);
+      p.lensTag = at(label(lens.word(v), 24, "#" + new THREE.Color().setHSL(lens.hue / 360, 0.8, 0.3).getHexString()), 0, 4.6, 12.5);
+      p.spot.add(p.lensTag);
+    });
+    return lens
+      ? "The ground under each project is coloured by " + lens.says + ": the deeper the colour, the more. Grey ground has no figure."
+      : null;
+  }
+  var lensPick = document.getElementById("lens");
+  if (lensPick)
+    lensPick.addEventListener("change", function () {
+      var says = setLens(lensPick.value);
+      if (!inside && !fp) hint.textContent = says || WORLD_HINT;
+    });
+
+  var trees = []; // kept, so a new project can clear the ground it is built on
+
+  // ---- The ground between the projects: a path from each to its neighbours, and
+  // trees wherever nothing stands. Drawn from a count of their own, so the people's
+  // places, which are drawn from another, stay where they were.
+  (function () {
+    var h = 4242;
+    var r = function () {
+      h = (h * 16807) % 2147483647;
+      return h / 2147483647;
+    };
+    var sand = new THREE.MeshBasicMaterial({ color: 0xe6ecd2, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    var path = function (a, b) {
+      var len = Math.hypot(b.x - a.x, b.z - a.z);
+      var strip = new THREE.Mesh(new THREE.PlaneGeometry(2.4, len), sand);
+      strip.rotation.x = -Math.PI / 2;
+      strip.rotation.z = Math.atan2(b.x - a.x, b.z - a.z);
+      strip.position.set((a.x + b.x) / 2, -0.8, (a.z + b.z) / 2);
+      world.add(strip);
+    };
+    places.forEach(function (p, i) {
+      var here = p.spot.position;
+      if ((i + 1) % cols && places[i + 1]) path(here, places[i + 1].spot.position);
+      if (places[i + cols]) path(here, places[i + cols].spot.position);
+    });
+    path(commons.position, places[Math.floor((rows - 1) / 2) * cols].spot.position);
+    var centres = places
+      .map(function (p) {
+        return { at: p.spot.position, keep: 14.5 };
+      })
+      .concat([{ at: commons.position, keep: 18.5 }]);
+    var planted = 0;
+    for (var tries = 0; planted < 90 && tries < 2000; tries++) {
+      var a = r() * Math.PI * 2;
+      var far = Math.sqrt(r()) * 164;
+      var x = Math.cos(a) * far;
+      var z = Math.sin(a) * far;
+      var clear = centres.every(function (c) {
+        return Math.hypot(x - c.at.x, z - c.at.z) > c.keep;
+      });
+      if (!clear) continue;
+      var tree = new THREE.Group();
+      tree.add(at(box(0.6, 1.8, 0.6, 0x9b7653), 0, 0.9, 0));
+      var crown = new THREE.Mesh(
+        new THREE.ConeGeometry(1.7, 4.2, 7),
+        mat(colour(105 + r() * 40, 0.42, 0.5 + r() * 0.12)),
+      );
+      tree.add(at(crown, 0, 3.6, 0));
+      tree.position.set(x, -0.85, z);
+      tree.scale.setScalar(0.8 + r() * 0.9);
+      tree.rotation.y = r() * 6;
+      world.add(tree);
+      trees.push(tree);
+      planted++;
+    }
+  })();
+
   var walkers = [];
+  // A person's shade is one soft spot at their feet: two hundred of them cast nothing.
+  var spotGeo = new THREE.CircleGeometry(0.75, 16);
+  var spotMat = new THREE.MeshBasicMaterial({ color: 0x1c2860, transparent: true, opacity: 0.2, depthWrite: false });
+  function shadeSpot() {
+    var s = new THREE.Mesh(spotGeo, spotMat);
+    s.rotation.x = -Math.PI / 2;
+    s.position.y = 0.05;
+    return s;
+  }
   var rand = (function () {
     var h = 20261112;
     return function () {
@@ -725,6 +947,8 @@
         });
       var fig = window.GTECH_PEOPLE.figure(person);
       fig.scale.multiplyScalar(1.5);
+      fig.userData.noShade = true;
+      fig.add(shadeSpot());
       var at0 = ringAt(homes[0] || commons.position, false);
       fig.position.set(at0.x, 0, at0.z);
       world.add(fig);
@@ -939,6 +1163,8 @@
         if (w.onArrive) w.onArrive();
       });
     showComing();
+    // The camera flies to the project, so the people can be watched coming in.
+    if (!inside && !fp) look(place.spot.position.clone().setY(4), 46);
   }
 
   // Camera moves ease toward a goal, so entering a project reads as going somewhere.
@@ -1122,30 +1348,129 @@
     );
   }
 
-  function showBusiness() {
-    var live = cat.apps;
-    var cost = live.reduce(function (n, a) {
+  // The order the card lists gaps in: what the business lacks or pays twice for first, upkeep last.
+  var GAP_ORDER = ["no-project", "overlap", "costly", "no-owner", "unlisted", "stale-docs", "no-docs-date"];
+  // A rule the list does not know comes last, never first.
+  function gapRank(rule) {
+    var i = GAP_ORDER.indexOf(rule);
+    return i < 0 ? GAP_ORDER.length : i;
+  }
+
+  /** The business problems a project works on, by name. */
+  function problemNames(entry) {
+    return (entry.app ? entry.app.problems : []).map(function (id) {
+      var problem = cat.problems.filter(function (x) {
+        return x.id === id;
+      })[0];
+      return problem ? problem.name : id;
+    });
+  }
+  /** The projects the stall rule marks, but for one an applied move of the agent's has staffed or retired. */
+  function stalling() {
+    return places.filter(function (p) {
+      return p.state && p.state.stalling && !applied["staff:" + p.entry.id] && !applied["merge:" + p.entry.id];
+    });
+  }
+  /** What the catalogue costs a month. */
+  function costNow() {
+    return cat.apps.reduce(function (n, a) {
       return n + a.costMonth;
     }, 0);
+  }
+
+  /** The projects the stall rule marks, longest idle first, each with the business problems it works on, and how the rule did where it was tested. */
+  function stallOf() {
+    if (!STALL) return "";
+    var rows = stalling()
+      .sort(function (a, b) {
+        return b.state.quiet - a.state.quiet;
+      });
+    if (!rows.length) return "";
+    return (
+      '<table><tr><th>Likely to stall</th><th class="n">Idle</th></tr>' +
+      rows
+        .map(function (p) {
+          var risk = problemNames(p.entry);
+          return (
+            '<tr data-entry="' +
+            esc(p.entry.id) +
+            '"><td>' +
+            esc(p.entry.name) +
+            (risk.length
+              ? '<br><span style="color:var(--muted);font-size:11px">at risk: ' + esc(risk.join("; ")) + "</span>"
+              : "") +
+            '</td><td class="n" style="white-space:nowrap">' +
+            p.state.quiet +
+            " days</td></tr>"
+          );
+        })
+        .join("") +
+      '</table><p class="sub" style="margin:8px 0 0">Predicted: no commit in the next 30 days, for a project idle ' +
+      STALL.rule.idleDays +
+      " days or more. Tested on " +
+      STALL.repositories +
+      " real repositories, none of them GTech's: right " +
+      STALL.test.right +
+      " of " +
+      STALL.test.of +
+      " times. The idle days here are dummy.</p>"
+    );
+  }
+
+  function showBusiness() {
+    var live = cat.apps;
+    // Repositories scanned here that the catalogue does not list: the home page cannot see them.
+    var unlisted = gapList.filter(function (g) {
+      return g.rule === "unlisted";
+    }).length;
+    var short = shortOf();
+    var stall = stallOf();
+    // The figures as the agent's applied moves leave them; with none applied, as they are.
+    var base = agentBase();
+    var now = Agent ? Agent.after(base, agentMoves, applied) : base;
+    var moved = agentMoves.filter(function (m) {
+      return applied[m.id];
+    });
+    var closed = {};
+    moved.forEach(function (m) {
+      m.closes.forEach(function (says) {
+        closed[says] = true;
+      });
+    });
     card.hidden = false;
     card.innerHTML =
       "<h2>GTech at a glance</h2>" +
       '<div class="facts"><div><b>' +
       live.length +
       "</b><span>apps and services</span></div><div><b>" +
-      rm(cost) +
+      rm(now.cost) +
       "</b><span>a month (dummy)</span></div><div><b>" +
-      gapList.length +
-      "</b><span>gaps</span></div></div>" +
-      shortOf() +
+      now.gaps +
+      "</b><span>gaps" +
+      (unlisted ? ": " + (now.gaps - unlisted) + " in the catalogue, " + unlisted + " outside it" : "") +
+      "</span></div></div>" +
+      (moved.length
+        ? '<p class="sub" style="margin:0 0 10px">With ' +
+          moved.length +
+          " of the agent's moves applied. Before them: " +
+          base.gaps +
+          " gaps, " +
+          rm(base.cost) +
+          " a month.</p>"
+        : "") +
+      // The gaps lead the card: they are what a business viewer came for.
       "<table><tr><th>Gaps, by rule</th></tr>" +
       gapList
+        .slice()
+        .sort(function (a, b) {
+          return gapRank(a.rule) - gapRank(b.rule);
+        })
         .map(function (g) {
-          var id = g.apps[0] || "gap-" + g.problem;
+          // A problem with no project has nothing in the world to go to, so its row is no link.
           return (
-            '<tr data-entry="' +
-            esc(id) +
-            '"><td>' +
+            "<tr" +
+            (g.apps[0] ? ' data-entry="' + esc(g.apps[0]) + '"' : "") +
+            "><td>" +
             esc(g.says) +
             (g.dummy ? " (dummy)" : "") +
             "</td></tr>"
@@ -1153,6 +1478,8 @@
         })
         .join("") +
       "</table>" +
+      (stall ? '<div style="margin-top:12px">' + stall + "</div>" : "") +
+      (short ? '<div style="margin-top:12px">' + short + "</div>" : "") +
       '<table style="margin-top:12px"><tr><th>Project</th><th>Status</th><th class="n">Users</th><th class="n">RM / month</th></tr>' +
       live
         .map(function (a) {
@@ -1173,6 +1500,11 @@
         .join("") +
       "</table>" +
       DUMMY;
+    // A gap an applied move closes is struck through, not taken out, so what changed can be seen.
+    Array.prototype.forEach.call(card.querySelectorAll("tr > td:only-child"), function (td) {
+      if (closed[td.textContent.replace(/ \(dummy\)$/, "")])
+        td.style.cssText = "text-decoration:line-through;color:var(--muted)";
+    });
   }
 
   function showWorld() {
@@ -1350,9 +1682,11 @@
       ? "A building is one app or package, a floor one module, as tall as its file count. Drag to orbit, scroll to zoom, click a floor."
       : WORLD_HINT;
     // The tour and the map key belong to the world view.
-    ["tour", "key"].forEach(function (id) {
+    ["tour", "agent", "walk", "lens-wrap", "key"].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) el.hidden = !!inside;
+      // The lens's label is laid out as a row, which the hidden attribute alone does not undo.
+      if (el && id === "lens-wrap") el.style.display = inside ? "none" : "";
     });
   }
 
@@ -1467,6 +1801,224 @@
     document.getElementById("staffing").addEventListener("click", showStaffing);
   else document.getElementById("staffing").hidden = true;
 
+  // ---- The agent: its moves are worked out by agent.js; here they are shown, and
+  // applied to the city or taken back.
+  var placeOf = function (id) {
+    return places.filter(function (p) {
+      return p.entry.id === id;
+    })[0];
+  };
+  /** The figures the moves are set against: as the city is, with no move applied. */
+  function agentBase() {
+    return {
+      gaps: gapList.length,
+      cost: costNow(),
+      stall: places.filter(function (p) {
+        return p.state && p.state.stalling;
+      }).length,
+    };
+  }
+  /** What the moves are worked out from: the catalogue, its gaps, the stalling projects with an open seat and who fits it, and the people on no project. */
+  function agentWorld() {
+    return {
+      apps: cat.apps,
+      problems: cat.problems,
+      gaps: gapList,
+      stallingIds: places
+        .filter(function (p) {
+          return p.state && p.state.stalling;
+        })
+        .map(function (p) {
+          return p.entry.id;
+        }),
+      stalling: !People
+        ? []
+        : places
+            .filter(function (p) {
+              return p.state && p.state.stalling && p.openSeats && p.openSeats.length;
+            })
+            .map(function (p) {
+              var d = p.district || People.projectOf(p.entry.id);
+              return {
+                id: p.entry.id,
+                name: p.entry.name,
+                app: p.entry.app,
+                quiet: p.state.quiet,
+                seat: p.openSeats[0].trait.name,
+                problems: problemNames(p.entry),
+                candidates: People.match(p.openSeats[0], d)
+                  .slice(0, 2)
+                  .map(function (m) {
+                    return { name: m.person.name, score: m.score, spare: People.capacity(m.person) };
+                  }),
+              };
+            }),
+      free: !People
+        ? []
+        : People.roster
+            .filter(function (p) {
+              return !p.projects.length;
+            })
+            .map(function (p) {
+              return { name: p.name, area: p.intention.area, spare: People.capacity(p) };
+            }),
+    };
+  }
+  function showAgent() {
+    setGhost(null);
+    selected = null;
+    paint();
+    agentMoves = Agent.moves(agentWorld());
+    card.hidden = false;
+    card.innerHTML = Agent.listCard(agentMoves, applied, agentBase());
+    card.scrollTop = 0;
+  }
+  var moveOf = function (id) {
+    return agentMoves.filter(function (m) {
+      return m.id === id;
+    })[0];
+  };
+  function showMove(id) {
+    var m = moveOf(id);
+    if (!m) return showAgent();
+    card.innerHTML = Agent.moveCard(m, agentMoves, applied, agentBase());
+    card.scrollTop = 0;
+    var where = placeOf(m.places[0]);
+    if (where) look(where.spot.position.clone().setY(4), 46);
+  }
+  /** Applies a move to the city, or takes it back: the figures follow on every card, and the world shows it where it can. */
+  // ---- What an applied move looks like in the world.
+  // A merge: the retired product's users cross to the one kept, as dots along an arc.
+  var flows = [];
+  function flowBetween(a, b) {
+    var from = a.spot.position.clone().setY(9);
+    var to = b.spot.position.clone().setY(9);
+    var top = from.clone().add(to).multiplyScalar(0.5).setY(9 + from.distanceTo(to) * 0.35);
+    var curve = new THREE.QuadraticBezierCurve3(from, top, to);
+    var group = new THREE.Group();
+    group.add(
+      new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(curve.getPoints(48)),
+        new THREE.LineBasicMaterial({ color: 0x1b5e8a, transparent: true, opacity: 0.5 }),
+      ),
+    );
+    var dots = [];
+    var blue = new THREE.MeshBasicMaterial({ color: 0x1b8ad6 });
+    for (var i = 0; i < 10; i++) {
+      var dot = new THREE.Mesh(new THREE.SphereGeometry(0.75, 12, 8), blue);
+      dot.position.copy(curve.getPoint(i / 10));
+      group.add(dot);
+      dots.push(dot);
+    }
+    world.add(group);
+    var flow = { group: group, curve: curve, dots: dots };
+    flows.push(flow);
+    return flow;
+  }
+  // A start: a plot is fenced off on the next free ground, and its team walks over.
+  var started = {};
+  function startPlot(m) {
+    var n = places.length + Object.keys(started).length;
+    var spot = new THREE.Group();
+    spot.position.set(
+      ((n % cols) - (cols - 1) / 2) * SPACING,
+      0,
+      (Math.floor(n / cols) - (rows - 1) / 2) * SPACING,
+    );
+    spot.add(at(new THREE.Mesh(new THREE.CylinderGeometry(11, 11, 0.8, 40), mat(0xeef4e6)), 0, -0.42, 0));
+    spot.add(plotOf());
+    var name = m.title.replace(/^Start a project for: /, "");
+    spot.add(at(label(name.length > 34 ? name.slice(0, 33) + "…" : name, 22), 0, 1.4, 12.5));
+    spot.add(at(label("new project", 28, "#17663f"), 0, 12, 0));
+    shade(spot);
+    world.add(spot);
+    var cleared = trees.filter(function (t) {
+      return t.visible && Math.hypot(t.position.x - spot.position.x, t.position.z - spot.position.z) < 15;
+    });
+    cleared.forEach(function (t) {
+      t.visible = false;
+    });
+    var team = m.people
+      .map(function (who) {
+        return walkers.filter(function (w) {
+          return w.person.name === who.name;
+        })[0];
+      })
+      .filter(Boolean)
+      .map(function (w) {
+        var was = { w: w, homes: w.homes, hi: w.hi, lead: w.lead };
+        w.homes = [spot.position];
+        w.hi = 0;
+        w.lead = null;
+        w.wait = 0;
+        return was;
+      });
+    return { spot: spot, cleared: cleared, team: team };
+  }
+  function endPlot(s) {
+    world.remove(s.spot);
+    s.cleared.forEach(function (t) {
+      t.visible = true;
+    });
+    s.team.forEach(function (was) {
+      was.w.homes = was.homes;
+      was.w.hi = was.hi;
+      was.w.lead = was.lead;
+      was.w.wait = 0;
+    });
+  }
+
+  function applyMove(id) {
+    var m = moveOf(id);
+    if (!m) return;
+    var on = (applied[id] = !applied[id]);
+    if (m.kind === "start") {
+      if (on) {
+        started[id] = startPlot(m);
+        if (!fp) look(started[id].spot.position.clone().setY(4), 52);
+      } else if (started[id]) {
+        endPlot(started[id]);
+        delete started[id];
+      }
+    }
+    if (m.kind === "staff") {
+      // The people who fit walk over, and the project's stall tag comes down.
+      var staffed = placeOf(m.flare);
+      if (staffed.stallTag) staffed.stallTag.visible = !on;
+      if (on) sendFlare(staffed, 0);
+      else sendHome();
+    }
+    if (m.kind === "merge") {
+      // The retired product says where it is going.
+      var retired = placeOf(m.retire);
+      if (retired && on && !retired.mergeTag) {
+        retired.mergeTag = at(
+          label("merging into " + placeOf(m.places[0]).entry.name, 26, "#1b5e8a"),
+          0,
+          retired.flag ? 24.2 : 20.6,
+          0,
+        );
+        retired.spot.add(retired.mergeTag);
+      }
+      if (retired && retired.mergeTag) retired.mergeTag.visible = on;
+      if (retired && retired.stallTag) retired.stallTag.visible = !on;
+      var kept = placeOf(m.places[0]);
+      if (retired && kept && on && !retired.flow) {
+        retired.flow = flowBetween(retired, kept);
+        var between = retired.spot.position.clone().add(kept.spot.position).multiplyScalar(0.5).setY(4);
+        if (!fp) look(between, retired.spot.position.distanceTo(kept.spot.position) * 1.1 + 52);
+      }
+      if (retired && retired.flow && !on) {
+        world.remove(retired.flow.group);
+        flows.splice(flows.indexOf(retired.flow), 1);
+        retired.flow = null;
+      }
+    }
+    showMove(id);
+  }
+  if (Agent) document.getElementById("agent").addEventListener("click", showAgent);
+  else document.getElementById("agent").hidden = true;
+
   /** Opens one seat of one project from the staffing card, which is where back leads. */
   function openSeat(key) {
     var id = key.slice(0, key.lastIndexOf("/"));
@@ -1494,6 +2046,7 @@
 
   function enter(p) {
     if (typeof stopTour === "function") stopTour();
+    stopWalk(true);
     if (inside) inside.group.visible = false;
     inside = p;
     selected = null;
@@ -1547,6 +2100,10 @@
       filters[box.dataset.filter] = box.checked;
       return showShortlist();
     }
+    var apply = e.target.closest("[data-apply]");
+    if (apply) return applyMove(apply.dataset.apply);
+    if (e.target.closest("[data-agent]")) return showAgent();
+    if (e.target.closest("[data-agent-home]")) return showWorld();
     if (e.target.closest("label")) return; // its checkbox's own click follows
     var row = e.target.closest("tr");
     if (!row) return;
@@ -1560,6 +2117,7 @@
       }
       return;
     }
+    if (row.dataset.move) return showMove(row.dataset.move);
     if (row.dataset.open) return openSeat(row.dataset.open);
     if (row.dataset.who) {
       card.innerHTML = People.personCard(row.dataset.who, "Staffing");
@@ -1707,9 +2265,15 @@
   if (first) enter(first);
   else leave();
   if (goal) {
-    camera.position.copy(goal.position);
     controls.target.copy(goal.target);
-    goal = null;
+    if (first || q.has("shot") || matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      camera.position.copy(goal.position);
+      goal = null;
+    } else {
+      // The world is come down to from high above it, once, as the page opens.
+      camera.position.copy(goal.target).add(goal.position.clone().sub(goal.target).multiplyScalar(2.4));
+      camera.position.y += 140;
+    }
   }
   if (inside && q.get("select")) {
     var want = q.get("select").split("/");
@@ -1813,6 +2377,7 @@
     var i = 0;
     // A tour is asked for, so it plays even where the device prefers less motion.
     if (still && motionBtn) motionBtn.click();
+    stopWalk(true);
     if (inside) leave();
     sendHome();
     tourBtn.textContent = "Stop tour";
@@ -1834,10 +2399,304 @@
       } else startTour();
     });
 
+  // ---- A walk: the world at eye height. While a flare is up the walk is taken with
+  // the best fit still on the way, through their eyes; otherwise it is the viewer's own.
+  var fp = null;
+  var keys = {};
+  var walkBtn = document.getElementById("walk");
+  var EYE = 4; // a figure's own eye height
+  var WALK_HINT =
+    "Walking. W A S D or the arrow keys to move, drag to look, Shift to hurry, Esc to leave.";
+  function getOff() {
+    if (!fp || !fp.rider) return;
+    fp.rider.fig.visible = true;
+    fp.yaw = fp.head + Math.PI + fp.turn;
+    fp.rider = null;
+    hint.textContent = WALK_HINT;
+  }
+  function startWalk() {
+    if (inside || fp) return;
+    stopTour();
+    goal = null;
+    var dir = controls.target.clone().sub(camera.position).setY(0);
+    if (dir.lengthSq() < 0.01) dir.set(0, 0, -1);
+    dir.normalize();
+    var from = controls.target.clone().addScaledVector(dir, -20);
+    fp = { x: from.x, z: from.z, yaw: Math.atan2(-dir.x, -dir.z), pitch: 0, rider: null, head: 0, turn: 0 };
+    if (flare) {
+      var coming = flare.list
+        .map(function (m) {
+          return walkers.filter(function (w) {
+            return w.person.id === m.person.id && w.called === flare.place;
+          })[0];
+        })
+        .filter(Boolean);
+      var rider =
+        coming.filter(function (w) {
+          return !w.arrived;
+        })[0] || coming[0];
+      if (rider) {
+        fp.rider = rider;
+        fp.head = rider.fig.rotation.y;
+        rider.fig.visible = false;
+      }
+    }
+    camera.fov = 62;
+    camera.updateProjectionMatrix();
+    camera.rotation.order = "YXZ";
+    controls.enabled = false;
+    if (minimap) minimap.hidden = false;
+    if (stick) stick.hidden = !touchy;
+    if (tip) tip.hidden = true;
+    walkBtn.textContent = "Leave walk";
+    walkBtn.setAttribute("aria-pressed", "true");
+    hint.textContent = fp.rider
+      ? "Walking with " +
+        fp.rider.person.name +
+        " to " +
+        flare.place.entry.name +
+        ". Drag to look around, press W or an arrow key to walk on your own, Esc to leave."
+      : WALK_HINT;
+  }
+  /** Ends the walk. `quiet` leaves the camera to whoever asked, as when a project is entered. */
+  function stopWalk(quiet) {
+    if (!fp) return;
+    if (fp.rider) fp.rider.fig.visible = true;
+    fp = null;
+    keys = {};
+    push.x = push.y = 0;
+    if (minimap) minimap.hidden = true;
+    if (stick) stick.hidden = true;
+    camera.fov = 40;
+    camera.updateProjectionMatrix();
+    controls.enabled = true;
+    if (walkBtn) {
+      walkBtn.textContent = "Walk";
+      walkBtn.setAttribute("aria-pressed", "false");
+    }
+    if (quiet) return;
+    hint.textContent = WORLD_HINT;
+    if (flare) look(flare.place.spot.position.clone().setY(4), 46);
+    else look(worldCentre(), Math.max(cols, rows) * SPACING * 0.75 + 34);
+  }
+  function stepWalk(dt) {
+    var bob = 0;
+    // Whoever is walked with was sent home: the walk goes on alone from where they stood.
+    if (fp.rider && !fp.rider.called) getOff();
+    if (fp.rider) {
+      var w = fp.rider;
+      var at = w.fig.position;
+      var to = w.arrived ? w.called.spot.position : { x: w.tx, z: w.tz };
+      var want = Math.atan2(to.x - at.x, to.z - at.z);
+      // Turned the short way round, and not at once, so a change of course is not a jolt.
+      fp.head += Math.atan2(Math.sin(want - fp.head), Math.cos(want - fp.head)) * Math.min(1, dt * 4);
+      fp.x = at.x;
+      fp.z = at.z;
+      bob = at.y;
+    } else {
+      var on = function (a, b) {
+        return keys[a] || keys[b] ? 1 : 0;
+      };
+      var fwd = on("KeyW", "ArrowUp") - on("KeyS", "ArrowDown") - push.y;
+      var side = on("KeyD") - on("KeyA");
+      fp.yaw += (on("ArrowLeft") - on("ArrowRight") - push.x) * 1.8 * dt;
+      var step = (on("ShiftLeft", "ShiftRight") ? 30 : 14) * dt;
+      var sin = Math.sin(fp.yaw);
+      var cos = Math.cos(fp.yaw);
+      fp.x += (-sin * fwd + cos * side) * step;
+      fp.z += (-cos * fwd - sin * side) * step;
+      // Kept on the island, and out of the middle of a project's object.
+      var far = Math.hypot(fp.x, fp.z);
+      if (far > 168) {
+        fp.x *= 168 / far;
+        fp.z *= 168 / far;
+      }
+      places.forEach(function (p) {
+        var dx = fp.x - p.spot.position.x;
+        var dz = fp.z - p.spot.position.z;
+        var d = Math.hypot(dx, dz);
+        if (d < 7 && d > 0.001) {
+          fp.x = p.spot.position.x + (dx / d) * 7;
+          fp.z = p.spot.position.z + (dz / d) * 7;
+        }
+      });
+    }
+    camera.position.set(fp.x, EYE + bob, fp.z);
+    camera.rotation.set(fp.pitch, fp.rider ? fp.head + Math.PI + fp.turn : fp.yaw, 0);
+    drawMap();
+  }
+  if (walkBtn) {
+    walkBtn.addEventListener("click", function () {
+      if (fp) stopWalk();
+      else startWalk();
+    });
+    addEventListener("keydown", function (e) {
+      if (!fp || /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
+      if (e.code === "Escape") return stopWalk();
+      if (!/^(Key[WASD]|Arrow(Up|Down|Left|Right)|Shift(Left|Right))$/.test(e.code)) return;
+      e.preventDefault();
+      keys[e.code] = true;
+      if (!/^Shift/.test(e.code)) getOff();
+    });
+    addEventListener("keyup", function (e) {
+      keys[e.code] = false;
+    });
+    addEventListener("blur", function () {
+      keys = {};
+    });
+    renderer.domElement.addEventListener("pointermove", function (e) {
+      if (!fp || !e.buttons) return;
+      if (fp.rider) fp.turn -= e.movementX * 0.004;
+      else fp.yaw -= e.movementX * 0.004;
+      fp.pitch = Math.max(-1.1, Math.min(1.1, fp.pitch - e.movementY * 0.004));
+    });
+  }
+
+  // A stick for a touch screen, which has no keys: up and down walk, left and right turn.
+  var stick = document.getElementById("stick");
+  var push = { x: 0, y: 0 };
+  var touchy = matchMedia("(pointer: coarse)").matches || q.has("stick");
+  if (stick) {
+    var knob = stick.firstElementChild;
+    var lean = function (e) {
+      var box = stick.getBoundingClientRect();
+      var x = (e.clientX - box.left) / box.width - 0.5;
+      var y = (e.clientY - box.top) / box.height - 0.5;
+      var far = Math.hypot(x, y);
+      if (far > 0.5) {
+        x *= 0.5 / far;
+        y *= 0.5 / far;
+      }
+      push.x = x * 2;
+      push.y = y * 2;
+      knob.style.transform = "translate(" + x * 68 + "px," + y * 68 + "px)";
+      getOff();
+    };
+    var rest = function () {
+      push.x = push.y = 0;
+      knob.style.transform = "";
+    };
+    stick.addEventListener("pointerdown", function (e) {
+      stick.setPointerCapture(e.pointerId);
+      lean(e);
+    });
+    stick.addEventListener("pointermove", function (e) {
+      if (e.buttons || e.pointerType === "touch") lean(e);
+    });
+    stick.addEventListener("pointerup", rest);
+    stick.addEventListener("pointercancel", rest);
+  }
+
+  // The map of a walk: where the projects are, which are flagged, and which way one faces.
+  var minimap = document.getElementById("minimap");
+  function drawMap() {
+    if (!minimap) return;
+    var g = minimap.getContext("2d");
+    var mid = minimap.width / 2;
+    // Drawn to the ground the projects stand on, not the whole island, so each can be told apart.
+    var k = (mid - 10) / 120;
+    g.clearRect(0, 0, minimap.width, minimap.height);
+    g.fillStyle = "#cbe3b8";
+    g.beginPath();
+    g.arc(mid, mid, 120 * k, 0, Math.PI * 2);
+    g.fill();
+    places.forEach(function (p) {
+      var st = p.state && p.state.stalling && !(p.stallTag && !p.stallTag.visible);
+      g.fillStyle = flare && flare.place === p ? "#f72c8f" : st ? "#d98a00" : p.flag ? "#d9534f" : "#ffffff";
+      g.beginPath();
+      g.arc(mid + p.spot.position.x * k, mid + p.spot.position.z * k, 11, 0, Math.PI * 2);
+      g.fill();
+    });
+    // The walker: an arrow pointing the way the camera looks.
+    var yaw = fp.rider ? fp.head + Math.PI + fp.turn : fp.yaw;
+    g.save();
+    var out = Math.max(1, Math.hypot(fp.x, fp.z) / 112);
+    g.translate(mid + (fp.x / out) * k, mid + (fp.z / out) * k);
+    g.rotate(-yaw);
+    g.fillStyle = "#3d5afe";
+    g.strokeStyle = "#ffffff";
+    g.lineWidth = 3;
+    g.beginPath();
+    g.moveTo(0, -15);
+    g.lineTo(10, 11);
+    g.lineTo(0, 5);
+    g.lineTo(-10, 11);
+    g.closePath();
+    g.stroke();
+    g.fill();
+    g.restore();
+  }
+
+  // ---- Over a project in the world, the pointer says what it is before any click.
+  var tip = document.getElementById("tip");
+  var hover = null;
+  var tipRay = new THREE.Raycaster();
+  places.forEach(function (p) {
+    p.icon.userData.tipOf = p;
+  });
+  function tipFor(p) {
+    var a = p.entry.app;
+    var n = gapsOf(p.entry.id).length;
+    var bits = [n ? n + (n > 1 ? " gaps" : " gap") : "no gap"];
+    if (a) bits.push("RM " + Math.round(a.costMonth).toLocaleString("en-MY") + " a month");
+    if (a && a.users != null) bits.push(a.users.toLocaleString("en-MY") + " users");
+    if (p.state && p.state.quiet != null) bits.push("idle " + p.state.quiet + " days");
+    return "<b>" + esc(p.entry.name) + "</b><span>" + esc(bits.join(" · ")) + "</span>";
+  }
+  if (tip)
+    renderer.domElement.addEventListener("pointermove", function (e) {
+      if (inside || fp || e.buttons || e.pointerType === "touch") {
+        tip.hidden = true;
+        hover = null;
+        renderer.domElement.style.cursor = "";
+        return;
+      }
+      tipRay.setFromCamera(
+        new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1),
+        camera,
+      );
+      var hit = tipRay.intersectObjects(
+        places.map(function (p) {
+          return p.icon;
+        }),
+        true,
+      )[0];
+      var o = hit && hit.object;
+      while (o && !o.userData.tipOf) o = o.parent;
+      var p = o ? o.userData.tipOf : null;
+      if (p !== hover) {
+        hover = p;
+        tip.hidden = !p;
+        if (p) tip.innerHTML = tipFor(p);
+        renderer.domElement.style.cursor = p ? "pointer" : "";
+      }
+      if (p) {
+        tip.style.left = Math.min(e.clientX + 14, innerWidth - 280) + "px";
+        tip.style.top = e.clientY + 16 + "px";
+      }
+    });
+  renderer.domElement.addEventListener("pointerleave", function () {
+    if (tip) tip.hidden = true;
+    hover = null;
+  });
+
+  shade(world);
+  places.forEach(function (p) {
+    if (p.group) shade(p.group);
+  });
+
   var lastT = 0;
   function frame() {
     requestAnimationFrame(frame);
     var t = clock.getElapsedTime();
+    if (!still) {
+      clouds.rotation.y = t * 0.006;
+      flows.forEach(function (f) {
+        f.dots.forEach(function (dot, i) {
+          dot.position.copy(f.curve.getPoint((t * 0.16 + i / f.dots.length) % 1));
+        });
+      });
+    }
     if (inside) {
       exploded = still
         ? explodeGoal
@@ -1871,13 +2730,18 @@
       flare.trail.scale.y = Math.max(0.01, top - 11);
       flare.trail.position.y = 11 + (top - 11) / 2;
     }
-    if (goal) {
-      camera.position.lerp(goal.position, still ? 1 : 0.08);
-      controls.target.lerp(goal.target, still ? 1 : 0.08);
-      if (camera.position.distanceTo(goal.position) < 0.3) goal = null;
+    if (fp) {
+      goal = null;
+      stepWalk(Math.min(0.05, t - lastT));
+    } else {
+      if (goal) {
+        camera.position.lerp(goal.position, still ? 1 : 0.08);
+        controls.target.lerp(goal.target, still ? 1 : 0.08);
+        if (camera.position.distanceTo(goal.position) < 0.3) goal = null;
+      }
+      controls.update();
     }
     lastT = t;
-    controls.update();
     renderer.render(scene, camera);
   }
   frame();
