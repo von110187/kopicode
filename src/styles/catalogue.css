@@ -1,0 +1,336 @@
+/* The catalogue page. Spacing is in steps of 4 and 8; three tones say what kind of
+   trouble a gap is, and every tone has its word beside it. */
+.catalogue {
+  --work: #b3261e;
+  --work-soft: #fde7e4;
+  --owner: #8a5300;
+  --owner-soft: #fbecd0;
+  --upkeep: #3f4a6b;
+  --upkeep-soft: #e6eaf6;
+  --ok: #17663f;
+}
+.catalogue .lede {
+  margin: 8px 0 24px;
+  font-size: 16px;
+  color: var(--ink);
+  max-width: 60ch;
+}
+.catalogue h2 {
+  margin: 40px 0 8px;
+  font-size: 18px;
+  letter-spacing: -0.01em;
+}
+.catalogue .sub {
+  margin: 0 0 12px;
+  color: var(--muted);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: 1.3fr repeat(3, 1fr);
+  gap: 12px;
+}
+.tile {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  display: grid;
+  gap: 4px;
+  align-content: start;
+}
+.tile b {
+  font-size: 24px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.tile span {
+  color: var(--muted);
+  font-size: 13px;
+}
+.tile.lead {
+  background: var(--work-soft);
+  border-color: transparent;
+}
+.tile.lead b {
+  font-size: 40px;
+  color: var(--work);
+}
+.tile.lead span {
+  color: var(--ink);
+}
+
+.tag {
+  display: inline-block;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  justify-self: start;
+}
+.tag.work {
+  background: var(--work-soft);
+  color: var(--work);
+}
+.tag.owner {
+  background: var(--owner-soft);
+  color: var(--owner);
+}
+.tag.upkeep {
+  background: var(--upkeep-soft);
+  color: var(--upkeep);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.filters button {
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+.filters button i {
+  font-style: normal;
+  color: var(--muted);
+  margin-left: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.filters button:hover {
+  border-color: var(--accent);
+}
+.filters button[aria-pressed="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+.filters button[aria-pressed="true"] i {
+  color: rgba(255, 255, 255, 0.7);
+}
+.catalogue :is(button, a, input, select):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.gap-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.gap-rows li {
+  display: grid;
+  grid-template-columns: 104px 1fr auto;
+  gap: 12px;
+  align-items: baseline;
+  padding: 8px 16px;
+}
+.gap-rows li + li {
+  border-top: 1px solid var(--line);
+}
+.gap-rows a,
+.card footer a {
+  color: var(--accent);
+  font-size: 12px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.gap-rows a:hover,
+.card footer a:hover {
+  text-decoration: underline;
+}
+
+.cover {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.cover th,
+.cover td {
+  text-align: left;
+  padding: 8px 16px;
+  vertical-align: baseline;
+}
+.cover th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.cover td {
+  border-top: 1px solid var(--line);
+}
+.cover td:nth-child(2) {
+  color: var(--muted);
+  white-space: nowrap;
+}
+.cover tr.bare td:first-child {
+  font-weight: 600;
+}
+.cover .tag {
+  margin-left: 8px;
+}
+.cover tr.bare .tag {
+  margin-left: 0;
+}
+
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+.tools label {
+  display: grid;
+  gap: 4px;
+}
+.tools label span {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.tools input,
+.tools select {
+  font: inherit;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  min-width: 240px;
+}
+.tools select {
+  min-width: 0;
+}
+.tools .shown {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.card header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+.card h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.card .status {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.card dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr;
+  gap: 8px;
+}
+.card dt {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.card dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.card dd.none {
+  color: var(--owner);
+}
+.card .for {
+  margin: 0;
+  padding: 0 0 0 16px;
+  font-size: 13px;
+}
+.card .for .none {
+  list-style: none;
+  margin-left: -16px;
+  color: var(--muted);
+}
+.card footer {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.card footer a {
+  margin-left: auto;
+}
+.card .clear {
+  color: var(--ok);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .tiles {
+    grid-template-columns: 1fr 1fr;
+  }
+  .gap-rows li {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .cover th:nth-child(2),
+  .cover td:nth-child(2) {
+    display: none;
+  }
+  .tools input {
+    min-width: 0;
+    width: 100%;
+  }
+  .tools label:first-child {
+    flex: 1 1 100%;
+  }
+}
