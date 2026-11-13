@@ -5,11 +5,15 @@ import stall from "~/data/stall-model.json";
 import { ViewSwitch } from "~/components/ViewSwitch";
 import { createFigureKit, type FigureKit } from "~/three/figure-kit";
 import cityCss from "~/styles/city.css?url";
+import extrasCss from "~/styles/city-extras.css?url";
 
 export const Route = createFileRoute("/city")({
   head: () => ({
     meta: [{ title: "GTech City · 3D" }],
-    links: [{ rel: "stylesheet", href: cityCss }],
+    links: [
+      { rel: "stylesheet", href: cityCss },
+      { rel: "stylesheet", href: extrasCss },
+    ],
   }),
   component: City,
 });
@@ -78,11 +82,24 @@ function City() {
         <button id="wiring" aria-pressed="true">
           Wiring
         </button>
+        <label className="view-switch" id="lens-wrap">
+          <span>Colour by</span>
+          <select id="lens" defaultValue="">
+            <option value="">Nothing</option>
+            <option value="gaps">Gaps</option>
+            <option value="cost">Cost a month</option>
+            <option value="idle">Days idle</option>
+            <option value="users">Users</option>
+          </select>
+        </label>
         <span className="rest"></span>
         <button id="tour" className="lead">
           Tour
         </button>
         <button id="staffing">Staffing</button>
+        <button id="walk" aria-pressed="false">
+          Walk
+        </button>
         <button id="agent" className="lead">
           Agent
         </button>
@@ -91,6 +108,11 @@ function City() {
         </button>
       </div>
       <aside id="card" hidden aria-live="polite"></aside>
+      <div id="tip" hidden></div>
+      <canvas id="minimap" width={300} height={300} hidden aria-hidden="true"></canvas>
+      <div id="stick" hidden aria-label="Walk">
+        <i></i>
+      </div>
       <div id="key">
         <b>Map key</b>
         <span>The shape is what it does</span>
