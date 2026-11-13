@@ -34,6 +34,8 @@
   });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.setSize(innerWidth, innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   document.body.appendChild(renderer.domElement);
   var controls = new THREE.OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
@@ -43,8 +45,27 @@
 
   scene.add(new THREE.HemisphereLight(0xffffff, 0xcfc6b4, 0.95));
   var sun = new THREE.DirectionalLight(0xfff2d6, 0.55);
-  sun.position.set(60, 120, 40);
+  sun.position.set(70, 125, -85); // behind the world as it is first seen, so shade falls toward the viewer
+  // The sun's shadows cover the whole island, soft enough to read as a clear day.
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(4096, 4096);
+  sun.shadow.camera.left = sun.shadow.camera.bottom = -210;
+  sun.shadow.camera.right = sun.shadow.camera.top = 210;
+  sun.shadow.camera.near = 10;
+  sun.shadow.camera.far = 420;
+  sun.shadow.camera.updateProjectionMatrix();
+  sun.shadow.bias = -0.0004;
+  sun.shadow.normalBias = 0.6;
   scene.add(sun);
+  /** Lets every solid, lit shape under `root` cast a shadow and take one. People are left out: they have a spot of shade of their own. */
+  function shade(root) {
+    (function down(o) {
+      if (o.userData.noShade) return;
+      var m = o.material;
+      if (o.isMesh && m && m.isMeshLambertMaterial && !m.transparent) o.castShadow = o.receiveShadow = true;
+      o.children.forEach(down);
+    })(root);
+  }
   // The ground is an island floating on the sky: grass on top, earth at its edge.
   var ground = new THREE.Group();
   var grass = new THREE.Mesh(
@@ -59,7 +80,46 @@
   );
   earth.position.y = -19.9;
   ground.add(grass, earth);
+  // The grass is unlit, so shade falls on a sheet of its own just over the ground.
+  var shadeSheet = new THREE.Mesh(
+    new THREE.CircleGeometry(175, 72),
+    new THREE.ShadowMaterial({ opacity: 0.4, depthWrite: false }),
+  );
+  shadeSheet.rotation.x = -Math.PI / 2;
+  // Half a unit up: over the white ground each project stands on, and, as found by
+  // trying, as low as a broad shape's shade still falls on it whole.
+  shadeSheet.position.y = 0.5;
+  shadeSheet.receiveShadow = true;
+  shadeSheet.renderOrder = 1;
+  ground.add(shadeSheet);
   scene.add(ground);
+
+  // Clouds round the island and below its edge, drifting: it floats in the sky.
+  var clouds = new THREE.Group();
+  (function () {
+    var h = 77;
+    var r = function () {
+      h = (h * 16807) % 2147483647;
+      return h / 2147483647;
+    };
+    var white = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
+    for (var i = 0; i < 16; i++) {
+      var c = new THREE.Group();
+      var puffs = 3 + Math.floor(r() * 3);
+      for (var k = 0; k < puffs; k++) {
+        var puff = new THREE.Mesh(new THREE.SphereGeometry(7 + r() * 7, 12, 9), white);
+        puff.position.set((k - puffs / 2) * 9 + r() * 4, r() * 4, r() * 8 - 4);
+        puff.scale.y = 0.6;
+        c.add(puff);
+      }
+      var a = (i / 16) * Math.PI * 2 + r() * 0.3;
+      var far = 235 + r() * 120;
+      c.position.set(Math.cos(a) * far, -34 + r() * 44, Math.sin(a) * far);
+      c.scale.setScalar(0.8 + r() * 1.3);
+      clouds.add(c);
+    }
+  })();
+  scene.add(clouds);
 
   function colour(h, s, l) {
     return new THREE.Color().setHSL(h / 360, s, l);
@@ -711,7 +771,70 @@
   commons.add(at(label("On no project", 22), 0, 1.4, 16.5));
   world.add(commons);
 
+  // ---- The ground between the projects: a path from each to its neighbours, and
+  // trees wherever nothing stands. Drawn from a count of their own, so the people's
+  // places, which are drawn from another, stay where they were.
+  (function () {
+    var h = 4242;
+    var r = function () {
+      h = (h * 16807) % 2147483647;
+      return h / 2147483647;
+    };
+    var sand = new THREE.MeshBasicMaterial({ color: 0xe6ecd2, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    var path = function (a, b) {
+      var len = Math.hypot(b.x - a.x, b.z - a.z);
+      var strip = new THREE.Mesh(new THREE.PlaneGeometry(2.4, len), sand);
+      strip.rotation.x = -Math.PI / 2;
+      strip.rotation.z = Math.atan2(b.x - a.x, b.z - a.z);
+      strip.position.set((a.x + b.x) / 2, -0.8, (a.z + b.z) / 2);
+      world.add(strip);
+    };
+    places.forEach(function (p, i) {
+      var here = p.spot.position;
+      if ((i + 1) % cols && places[i + 1]) path(here, places[i + 1].spot.position);
+      if (places[i + cols]) path(here, places[i + cols].spot.position);
+    });
+    path(commons.position, places[Math.floor((rows - 1) / 2) * cols].spot.position);
+    var centres = places
+      .map(function (p) {
+        return { at: p.spot.position, keep: 14.5 };
+      })
+      .concat([{ at: commons.position, keep: 18.5 }]);
+    var planted = 0;
+    for (var tries = 0; planted < 90 && tries < 2000; tries++) {
+      var a = r() * Math.PI * 2;
+      var far = Math.sqrt(r()) * 164;
+      var x = Math.cos(a) * far;
+      var z = Math.sin(a) * far;
+      var clear = centres.every(function (c) {
+        return Math.hypot(x - c.at.x, z - c.at.z) > c.keep;
+      });
+      if (!clear) continue;
+      var tree = new THREE.Group();
+      tree.add(at(box(0.6, 1.8, 0.6, 0x9b7653), 0, 0.9, 0));
+      var crown = new THREE.Mesh(
+        new THREE.ConeGeometry(1.7, 4.2, 7),
+        mat(colour(105 + r() * 40, 0.42, 0.5 + r() * 0.12)),
+      );
+      tree.add(at(crown, 0, 3.6, 0));
+      tree.position.set(x, -0.85, z);
+      tree.scale.setScalar(0.8 + r() * 0.9);
+      tree.rotation.y = r() * 6;
+      world.add(tree);
+      planted++;
+    }
+  })();
+
   var walkers = [];
+  // A person's shade is one soft spot at their feet: two hundred of them cast nothing.
+  var spotGeo = new THREE.CircleGeometry(0.75, 16);
+  var spotMat = new THREE.MeshBasicMaterial({ color: 0x1c2860, transparent: true, opacity: 0.2, depthWrite: false });
+  function shadeSpot() {
+    var s = new THREE.Mesh(spotGeo, spotMat);
+    s.rotation.x = -Math.PI / 2;
+    s.position.y = 0.05;
+    return s;
+  }
   var rand = (function () {
     var h = 20261112;
     return function () {
@@ -739,6 +862,8 @@
         });
       var fig = window.GTECH_PEOPLE.figure(person);
       fig.scale.multiplyScalar(1.5);
+      fig.userData.noShade = true;
+      fig.add(shadeSpot());
       var at0 = ringAt(homes[0] || commons.position, false);
       fig.position.set(at0.x, 0, at0.z);
       world.add(fig);
@@ -1952,9 +2077,15 @@
   if (first) enter(first);
   else leave();
   if (goal) {
-    camera.position.copy(goal.position);
     controls.target.copy(goal.target);
-    goal = null;
+    if (first || q.has("shot") || matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      camera.position.copy(goal.position);
+      goal = null;
+    } else {
+      // The world is come down to from high above it, once, as the page opens.
+      camera.position.copy(goal.target).add(goal.position.clone().sub(goal.target).multiplyScalar(2.4));
+      camera.position.y += 140;
+    }
   }
   if (inside && q.get("select")) {
     var want = q.get("select").split("/");
@@ -2226,10 +2357,16 @@
     });
   }
 
+  shade(world);
+  places.forEach(function (p) {
+    if (p.group) shade(p.group);
+  });
+
   var lastT = 0;
   function frame() {
     requestAnimationFrame(frame);
     var t = clock.getElapsedTime();
+    if (!still) clouds.rotation.y = t * 0.006;
     if (inside) {
       exploded = still
         ? explodeGoal
