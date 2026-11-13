@@ -953,6 +953,8 @@
         if (w.onArrive) w.onArrive();
       });
     showComing();
+    // The camera flies to the project, so the people can be watched coming in.
+    if (!inside && !fp) look(place.spot.position.clone().setY(4), 46);
   }
 
   // Camera moves ease toward a goal, so entering a project reads as going somewhere.
@@ -1470,7 +1472,7 @@
       ? "A building is one app or package, a floor one module, as tall as its file count. Drag to orbit, scroll to zoom, click a floor."
       : WORLD_HINT;
     // The tour and the map key belong to the world view.
-    ["tour", "agent", "key"].forEach(function (id) {
+    ["tour", "agent", "walk", "key"].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) el.hidden = !!inside;
     });
@@ -1731,6 +1733,7 @@
 
   function enter(p) {
     if (typeof stopTour === "function") stopTour();
+    stopWalk(true);
     if (inside) inside.group.visible = false;
     inside = p;
     selected = null;
@@ -2055,6 +2058,7 @@
     var i = 0;
     // A tour is asked for, so it plays even where the device prefers less motion.
     if (still && motionBtn) motionBtn.click();
+    stopWalk(true);
     if (inside) leave();
     sendHome();
     tourBtn.textContent = "Stop tour";
@@ -2075,6 +2079,152 @@
         hint.textContent = WORLD_HINT;
       } else startTour();
     });
+
+  // ---- A walk: the world at eye height. While a flare is up the walk is taken with
+  // the best fit still on the way, through their eyes; otherwise it is the viewer's own.
+  var fp = null;
+  var keys = {};
+  var walkBtn = document.getElementById("walk");
+  var EYE = 4; // a figure's own eye height
+  var WALK_HINT =
+    "Walking. W A S D or the arrow keys to move, drag to look, Shift to hurry, Esc to leave.";
+  function getOff() {
+    if (!fp || !fp.rider) return;
+    fp.rider.fig.visible = true;
+    fp.yaw = fp.head + Math.PI + fp.turn;
+    fp.rider = null;
+    hint.textContent = WALK_HINT;
+  }
+  function startWalk() {
+    if (inside || fp) return;
+    stopTour();
+    goal = null;
+    var dir = controls.target.clone().sub(camera.position).setY(0);
+    if (dir.lengthSq() < 0.01) dir.set(0, 0, -1);
+    dir.normalize();
+    var from = controls.target.clone().addScaledVector(dir, -20);
+    fp = { x: from.x, z: from.z, yaw: Math.atan2(-dir.x, -dir.z), pitch: 0, rider: null, head: 0, turn: 0 };
+    if (flare) {
+      var coming = flare.list
+        .map(function (m) {
+          return walkers.filter(function (w) {
+            return w.person.id === m.person.id && w.called === flare.place;
+          })[0];
+        })
+        .filter(Boolean);
+      var rider =
+        coming.filter(function (w) {
+          return !w.arrived;
+        })[0] || coming[0];
+      if (rider) {
+        fp.rider = rider;
+        fp.head = rider.fig.rotation.y;
+        rider.fig.visible = false;
+      }
+    }
+    camera.fov = 62;
+    camera.updateProjectionMatrix();
+    camera.rotation.order = "YXZ";
+    controls.enabled = false;
+    walkBtn.textContent = "Leave walk";
+    walkBtn.setAttribute("aria-pressed", "true");
+    hint.textContent = fp.rider
+      ? "Walking with " +
+        fp.rider.person.name +
+        " to " +
+        flare.place.entry.name +
+        ". Drag to look around, press W or an arrow key to walk on your own, Esc to leave."
+      : WALK_HINT;
+  }
+  /** Ends the walk. `quiet` leaves the camera to whoever asked, as when a project is entered. */
+  function stopWalk(quiet) {
+    if (!fp) return;
+    if (fp.rider) fp.rider.fig.visible = true;
+    fp = null;
+    keys = {};
+    camera.fov = 40;
+    camera.updateProjectionMatrix();
+    controls.enabled = true;
+    if (walkBtn) {
+      walkBtn.textContent = "Walk";
+      walkBtn.setAttribute("aria-pressed", "false");
+    }
+    if (quiet) return;
+    hint.textContent = WORLD_HINT;
+    if (flare) look(flare.place.spot.position.clone().setY(4), 46);
+    else look(worldCentre(), Math.max(cols, rows) * SPACING * 0.75 + 34);
+  }
+  function stepWalk(dt) {
+    var bob = 0;
+    // Whoever is walked with was sent home: the walk goes on alone from where they stood.
+    if (fp.rider && !fp.rider.called) getOff();
+    if (fp.rider) {
+      var w = fp.rider;
+      var at = w.fig.position;
+      var to = w.arrived ? w.called.spot.position : { x: w.tx, z: w.tz };
+      var want = Math.atan2(to.x - at.x, to.z - at.z);
+      // Turned the short way round, and not at once, so a change of course is not a jolt.
+      fp.head += Math.atan2(Math.sin(want - fp.head), Math.cos(want - fp.head)) * Math.min(1, dt * 4);
+      fp.x = at.x;
+      fp.z = at.z;
+      bob = at.y;
+    } else {
+      var on = function (a, b) {
+        return keys[a] || keys[b] ? 1 : 0;
+      };
+      var fwd = on("KeyW", "ArrowUp") - on("KeyS", "ArrowDown");
+      var side = on("KeyD") - on("KeyA");
+      fp.yaw += (on("ArrowLeft") - on("ArrowRight")) * 1.8 * dt;
+      var step = (on("ShiftLeft", "ShiftRight") ? 30 : 14) * dt;
+      var sin = Math.sin(fp.yaw);
+      var cos = Math.cos(fp.yaw);
+      fp.x += (-sin * fwd + cos * side) * step;
+      fp.z += (-cos * fwd - sin * side) * step;
+      // Kept on the island, and out of the middle of a project's object.
+      var far = Math.hypot(fp.x, fp.z);
+      if (far > 168) {
+        fp.x *= 168 / far;
+        fp.z *= 168 / far;
+      }
+      places.forEach(function (p) {
+        var dx = fp.x - p.spot.position.x;
+        var dz = fp.z - p.spot.position.z;
+        var d = Math.hypot(dx, dz);
+        if (d < 7 && d > 0.001) {
+          fp.x = p.spot.position.x + (dx / d) * 7;
+          fp.z = p.spot.position.z + (dz / d) * 7;
+        }
+      });
+    }
+    camera.position.set(fp.x, EYE + bob, fp.z);
+    camera.rotation.set(fp.pitch, fp.rider ? fp.head + Math.PI + fp.turn : fp.yaw, 0);
+  }
+  if (walkBtn) {
+    walkBtn.addEventListener("click", function () {
+      if (fp) stopWalk();
+      else startWalk();
+    });
+    addEventListener("keydown", function (e) {
+      if (!fp || /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
+      if (e.code === "Escape") return stopWalk();
+      if (!/^(Key[WASD]|Arrow(Up|Down|Left|Right)|Shift(Left|Right))$/.test(e.code)) return;
+      e.preventDefault();
+      keys[e.code] = true;
+      if (!/^Shift/.test(e.code)) getOff();
+    });
+    addEventListener("keyup", function (e) {
+      keys[e.code] = false;
+    });
+    addEventListener("blur", function () {
+      keys = {};
+    });
+    renderer.domElement.addEventListener("pointermove", function (e) {
+      if (!fp || !e.buttons) return;
+      if (fp.rider) fp.turn -= e.movementX * 0.004;
+      else fp.yaw -= e.movementX * 0.004;
+      fp.pitch = Math.max(-1.1, Math.min(1.1, fp.pitch - e.movementY * 0.004));
+    });
+  }
 
   var lastT = 0;
   function frame() {
@@ -2113,13 +2263,18 @@
       flare.trail.scale.y = Math.max(0.01, top - 11);
       flare.trail.position.y = 11 + (top - 11) / 2;
     }
-    if (goal) {
-      camera.position.lerp(goal.position, still ? 1 : 0.08);
-      controls.target.lerp(goal.target, still ? 1 : 0.08);
-      if (camera.position.distanceTo(goal.position) < 0.3) goal = null;
+    if (fp) {
+      goal = null;
+      stepWalk(Math.min(0.05, t - lastT));
+    } else {
+      if (goal) {
+        camera.position.lerp(goal.position, still ? 1 : 0.08);
+        controls.target.lerp(goal.target, still ? 1 : 0.08);
+        if (camera.position.distanceTo(goal.position) < 0.3) goal = null;
+      }
+      controls.update();
     }
     lastT = t;
-    controls.update();
     renderer.render(scene, camera);
   }
   frame();

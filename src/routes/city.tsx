@@ -83,6 +83,9 @@ function City() {
           Tour
         </button>
         <button id="staffing">Staffing</button>
+        <button id="walk" aria-pressed="false">
+          Walk
+        </button>
         <button id="agent" className="lead">
           Agent
         </button>
